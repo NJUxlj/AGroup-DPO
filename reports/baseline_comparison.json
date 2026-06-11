@@ -1,0 +1,28 @@
+{
+  "models": {
+    "dpo": {
+      "name": "qwen2_5_1_5b_insurance_dpo_v1.2",
+      "accuracy": 0.0,
+      "bleu_4": 0.0,
+      "rouge_l": 0.0235,
+      "p50_total_ms": 261.4,
+      "throughput": 3.8
+    },
+    "baseline": {
+      "name": "Qwen2.5-1.5B-Instruct (no DPO)",
+      "accuracy": 0.0,
+      "bleu_4": 0.0,
+      "rouge_l": 0.06857142857142857,
+      "p50_total_ms": 352.8228636831045,
+      "throughput": 2.8342834405940645
+    }
+  },
+  "relative_changes": {
+    "accuracy": "N/A (baseline=0)",
+    "bleu_4": "N/A (baseline=0)",
+    "rouge_l": "-65.7%",
+    "p50_total_ms": "-25.9%"
+  },
+  "n_samples": 10,
+  "generated_at": "2026-06-11T09:35:20Z"
+}

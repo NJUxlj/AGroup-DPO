@@ -1,0 +1,22 @@
+{
+  "model_version": "qwen2_5_1_5b_insurance_dpo_v1.2",
+  "infer_backend": "vllm",
+  "datasets": {
+    "insurance_qa_smoke": {
+      "accuracy": 0.0,
+      "bleu_4": 0.0,
+      "rouge_l": 0.0235,
+      "n_samples": 10
+    }
+  },
+  "generated_at": "2026-06-11T06:07:49.881741+00:00",
+  "latency": {
+    "p50_first_token_ms": 0.0,
+    "p95_first_token_ms": 0.0,
+    "p99_first_token_ms": 0.0,
+    "p50_total_ms": 261.4,
+    "p95_total_ms": 261.4,
+    "p99_total_ms": 261.4,
+    "throughput_samples_per_s": 3.8
+  }
+}

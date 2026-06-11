@@ -1,0 +1,30 @@
+# vLLM 推理服务编排 (与 5b 二选一) - M01 阶段交付物 D-M01-05c
+# M05 引用: 用于 vLLM 推理模式
+
+version: "3.8"
+
+services:
+  vllm:
+    image: copaw-dpo-infer-vllm:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.infer-vllm
+    runtime: nvidia
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - HF_HOME=/shared/cache/hf
+    volumes:
+      - /shared:/shared
+      - ../merged_models:/workspace/merged_models:ro
+      - ../configs:/workspace/configs
+    ports:
+      - "8080:8080"
+    working_dir: /workspace
+    command: python -m m_infer.cli --config configs/infer.yaml --host 0.0.0.0 --port 8080
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

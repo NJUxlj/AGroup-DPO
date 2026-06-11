@@ -1,0 +1,56 @@
+# DPO 数据集生成配置 (M02 D-M02-09)
+# 对应 M02 § 7.4 配置文件示例
+
+project: insurance_dpo
+seed: 42
+version: dpo_v1.2
+
+sources:
+  policy:
+    enabled: true
+    type: policy
+    path: data/insurance/raw/policies/
+    parser: json
+    limit: 0
+  faq:
+    enabled: true
+    type: faq
+    path: data/insurance/raw/faq/
+    limit: 0
+  ticket:
+    enabled: true
+    type: ticket
+    path: data/insurance/raw/tickets/
+    filter_category: compliance_qa
+    limit: 0
+
+strategies:
+  rule_based:
+    enabled: true
+    # rules_file: configs/data/rules/hard_negatives.yaml
+  llm_judge:
+    enabled: false
+    # 本地无 Judge 模型时关闭此策略
+    # 在 server2 上可启用并配置 judge_endpoint
+    judge_model: qwen2.5-7b-instruct
+    judge_endpoint: http://127.0.0.1:8001/v1/chat/completions
+    rag_endpoint: http://rag.internal/v1/rag/query
+  retrieval_diff:
+    enabled: false
+    # 需要司内 RAG 端才可启用
+    full_index: /shared/indexes/insurance_full/
+    trunc_index: /shared/indexes/insurance_trunc/
+    rag_endpoint: http://rag.internal/v1/rag/query
+
+quality:
+  min_prompt_len: 5
+  max_prompt_len: 1024
+  min_response_len: 10
+  max_response_len: 2048
+  max_chosen_rejected_similarity: 0.95
+
+output:
+  path: data/insurance/dpo_train_v1.2.jsonl
+  shared_path: /shared/datasets/insurance_dpo/dpo_train_v1.2.jsonl
+  sft_path: data/insurance/insurance_sft_v1.jsonl
+  shared_sft_path: /shared/datasets/insurance_dpo/insurance_sft_v1.jsonl

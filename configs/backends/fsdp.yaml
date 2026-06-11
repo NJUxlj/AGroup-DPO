@@ -1,0 +1,15 @@
+# PyTorch FSDP 后端配置模板 (M04)
+# 使用方式：在训练配置中设置 trainer.distributed_backend: fsdp
+
+trainer:
+  distributed_backend: fsdp
+  per_device_batch_size: 2
+  gradient_accumulation_steps: 16
+  learning_rate: 1.0e-4
+  bf16: true
+
+fsdp:
+  sharding_strategy: FULL_SHARD
+  backward_prefetch: BACKWARD_PRE
+  cpu_offload: false
+  mixed_precision: bf16

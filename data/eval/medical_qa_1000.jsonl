@@ -1,0 +1,15 @@
+{"id": "med_qa_0001", "category": "policy", "question": "保险等待期内确诊疾病是否赔付？", "reference_answer": "等待期内确诊一般不予赔付，合同另有约定的除外。", "answer_type": "open", "judge_required": false}
+{"id": "med_qa_0002", "category": "deductible", "question": "百万医疗险的免赔额是怎么计算的？", "reference_answer": "百万医疗险通常设1万元年度免赔额，社保报销部分可抵扣免赔额。", "answer_type": "open", "judge_required": false}
+{"id": "med_qa_0003", "category": "disclosure", "question": "投保前未告知高血压，理赔会被拒吗？", "reference_answer": "投保前未如实告知高血压属于未履行如实告知义务，保险公司在两年内可拒赔并解除合同。", "answer_type": "open", "judge_required": false}
+{"id": "med_qa_0004", "category": "definition", "question": "什么是重大疾病保险？", "reference_answer": "重大疾病保险是指被保险人确诊合同约定的重大疾病时，保险公司一次性给付保险金的健康保险。", "answer_type": "open", "judge_required": false}
+{"id": "med_qa_0005", "category": "cash_value", "question": "保单现金价值是什么？", "reference_answer": "保单现金价值是指投保人在退保时可以领取的金额，通常是已缴保费扣除保险成本和手续费后的余额。", "answer_type": "open", "judge_required": false}
+{"id": "med_qa_0006", "category": "renewal", "question": "健康保险到期后能否自动续保？", "reference_answer": "健康保险到期后是否可以自动续保取决于合同约定，部分产品支持保证续保，部分需重新核保。", "answer_type": "open", "judge_required": false}
+{"id": "med_qa_0007", "category": "claim", "question": "住院医疗险的理赔流程是什么？", "reference_answer": "住院医疗险理赔流程：报案→提交病历发票等材料→保险公司审核→赔付。需在约定时间内报案。", "answer_type": "open", "judge_required": false}
+{"id": "med_qa_0008", "category": "choice", "question": "以下哪种情况不属于重大疾病保险赔付范围？A. 恶性肿瘤 B. 急性心肌梗塞 C. 普通感冒 D. 冠状动脉搭桥术", "reference_answer": "C", "answer_type": "choice", "judge_required": false}
+{"id": "med_qa_0009", "category": "pre_existing", "question": "既往症在健康保险中如何处理？", "reference_answer": "既往症在健康保险中通常属于责任免除范围，保险公司不予赔付。投保时需如实告知。", "answer_type": "open", "judge_required": false}
+{"id": "med_qa_0010", "category": "grace_period", "question": "保险宽限期是多长时间？", "reference_answer": "保险宽限期通常为30天或60天，在宽限期内补缴保费不影响保单效力，期间发生的保险事故仍予赔付。", "answer_type": "open", "judge_required": false}
+{"id": "med_qa_0011", "category": "subrogation", "question": "什么是保险代位求偿权？", "reference_answer": "保险代位求偿权是指保险人赔付被保险人后，依法取得向第三方责任人追偿的权利。", "answer_type": "open", "judge_required": false}
+{"id": "med_qa_0012", "category": "choice", "question": "医疗保险的等待期通常为多少天？A. 7天 B. 30天 C. 90天 D. 365天", "reference_answer": "B", "answer_type": "choice", "judge_required": false}
+{"id": "med_qa_0013", "category": "beneficiary", "question": "保险受益人如何变更？", "reference_answer": "保险受益人可以由投保人或被保险人书面申请变更，经保险公司同意后生效。", "answer_type": "open", "judge_required": false}
+{"id": "med_qa_0014", "category": "accidental", "question": "意外伤害保险的保障范围包括哪些？", "reference_answer": "意外伤害保险保障因外来的、突发的、非本意的、非疾病的意外事故导致的身故或伤残。", "answer_type": "open", "judge_required": false}
+{"id": "med_qa_0015", "category": "choice", "question": "定期寿险保障期限届满后，被保险人健在，保险公司如何处理？A. 退还保费 B. 给付保额 C. 合同终止无给付 D. 自动续保", "reference_answer": "C", "answer_type": "choice", "judge_required": false}

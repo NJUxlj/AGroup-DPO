@@ -1,0 +1,20 @@
+{
+  "insurance_sft_v1": {
+    "file_name": "insurance_sft_v1.jsonl",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  },
+  "insurance_dpo_v1.2": {
+    "file_name": "dpo_train_v1.2.jsonl",
+    "ranking": true,
+    "columns": {
+      "prompt": "prompt",
+      "chosen": "chosen",
+      "rejected": "rejected"
+    }
+  }
+}

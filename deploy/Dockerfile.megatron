@@ -1,0 +1,28 @@
+# Megatron-LM 后端 layer (接口预留, 1.5B 暂不启用 TP) - M01 阶段交付物 D-M01-02
+# copaw-dpo-megatron:latest
+
+FROM copaw-dpo-base:latest
+
+LABEL maintainer="ant-group-dpo-team" \
+      version="1.0" \
+      description="Megatron-LM 后端 layer (接口预留, 1.5B 暂不启用)"
+
+# 安装 apex (Megatron-LM 的优化算子库)
+RUN pip install --no-cache-dir \
+        nvtx==0.2.10 \
+        packaging==24.0
+
+# 安装 apex (从源码, 简化版)
+RUN git clone --depth 1 --branch 23.08 https://github.com/NVIDIA/apex.git /tmp/apex \
+    && cd /tmp/apex \
+    && pip install -v --disable-pip-version-check --no-cache-dir \
+        --config-settings "--build-option=--cpp_ext" \
+        --config-settings "--build-option=--cuda_ext" \
+        ./ \
+    && rm -rf /tmp/apex || echo "apex install skipped (will use m_trainer MegatronBackend stub)"
+
+# 注: Megatron 主体仅在 > 7B 模型时启用, 此处保留接口
+RUN echo "Megatron interface reserved for > 7B models"
+
+WORKDIR /workspace
+CMD ["/bin/bash"]

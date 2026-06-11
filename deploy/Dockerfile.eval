@@ -1,0 +1,29 @@
+# 评测 layer - M01 阶段交付物 D-M01-04
+# copaw-dpo-eval:latest
+
+FROM copaw-dpo-base:latest
+
+LABEL maintainer="ant-group-dpo-team" \
+      version="1.0" \
+      description="评测 layer - sacrebleu / rouge-score / nltk"
+
+# 安装评测依赖
+RUN pip install --no-cache-dir \
+        sacrebleu==2.4.2 \
+        rouge-score==0.1.2 \
+        nltk==3.8.1 \
+        evaluate==0.4.2 \
+        jieba==0.42.1
+
+# 下载 nltk 必要数据
+RUN python -c "import nltk; nltk.download('punkt', quiet=True); nltk.download('punkt_tab', quiet=True)" || true
+
+# 验证
+RUN python -c "import sacrebleu; print(f'sacrebleu={sacrebleu.__version__}')" \
+    && python -c "from rouge_score import rouge_scorer; print('rouge_score OK')" \
+    && python -c "import nltk; print(f'nltk={nltk.__version__}')" \
+    && python -c "import evaluate; print(f'evaluate={evaluate.__version__}')" \
+    && python -c "import jieba; print(f'jieba={jieba.__version__}')"
+
+WORKDIR /workspace
+CMD ["/bin/bash"]

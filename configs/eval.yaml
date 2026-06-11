@@ -1,0 +1,22 @@
+# M-EVAL: 评测流水线配置
+
+eval:
+  output_dir: reports/
+  max_new_tokens: 256
+  temperature: 0.3  # 评测时降低温度以提高稳定性
+
+  datasets:
+    - name: medical_qa_1000
+      path: data/eval/medical_qa_1000.jsonl
+    - name: insurance_qa_500
+      path: data/eval/insurance_qa_500.jsonl
+    - name: alpaca_zh_200
+      path: data/eval/alpaca_zh_200.jsonl
+
+  # 验收阈值
+  thresholds:
+    accuracy: 0.60
+    bleu_4: 0.30
+    rouge_l: 0.45
+    p50_latency_ms: 1200
+    p95_latency_ms: 2500

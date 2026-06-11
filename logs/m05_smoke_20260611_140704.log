@@ -1,0 +1,121 @@
+2026-06-11 14:07:07,071 [INFO] ============================================================
+2026-06-11 14:07:07,071 [INFO] M05 Smoke Test: vLLM + DPO Merge Model
+2026-06-11 14:07:07,071 [INFO] Model: /root/autodl-tmp/ant-group-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2
+2026-06-11 14:07:07,071 [INFO] ============================================================
+2026-06-11 14:07:07,071 [INFO] 
+测试 1: vLLM 加载 merge 模型...
+/root/autodl-tmp/envs/vllm/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+/root/autodl-tmp/envs/vllm/lib/python3.12/site-packages/transformers/loss/loss_for_object_detection.py:28: UserWarning: A NumPy version >=1.22.4 and <2.3.0 is required for this version of SciPy (detected version 2.3.5)
+  from scipy.optimize import linear_sum_assignment
+WARNING 06-11 14:07:10 [config.py:70] Support for Transformers v4 is deprecated. The Transformers v4 codepath will become unmaintained in vLLM v0.22.0 and will be removed in vLLM v0.24.0. Please upgrade to Transformers v5: pip install --upgrade transformers
+2026-06-11 14:07:12,221 [INFO] vLLM loading model: path=/root/autodl-tmp/ant-group-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2, tp=1, max_len=2048, dtype=bfloat16
+INFO 06-11 14:07:12 [utils.py:278] non-default args: {'dtype': 'bfloat16', 'max_model_len': 2048, 'gpu_memory_utilization': 0.85, 'disable_log_stats': True, 'model': '/root/autodl-tmp/ant-group-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2'}
+INFO 06-11 14:07:12 [model.py:617] Resolved architecture: Qwen2ForCausalLM
+INFO 06-11 14:07:12 [model.py:1752] Using max model len 2048
+INFO 06-11 14:07:12 [scheduler.py:239] Chunked prefill is enabled with max_num_batched_tokens=8192.
+INFO 06-11 14:07:12 [vllm.py:977] Asynchronous scheduling is enabled.
+INFO 06-11 14:07:12 [kernel.py:270] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(EngineCore pid=13538) INFO 06-11 14:07:14 [core.py:112] Initializing a V1 LLM engine (v0.22.1) with config: model='/root/autodl-tmp/ant-group-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2', speculative_config=None, tokenizer='/root/autodl-tmp/ant-group-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=2048, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=/root/autodl-tmp/ant-group-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::linear_attention', 'vllm::plamo2_mamba_mixer', 'vllm::qwen_gdn_attention_core', 'vllm::gdn_attention_core_xpu', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::kda_attention', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::deepseek_v4_attention', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [8192], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256, 272, 288, 304, 320, 336, 352, 368, 384, 400, 416, 432, 448, 464, 480, 496, 512], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False}, 'max_cudagraph_capture_size': 512, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, moe_backend='auto', linear_backend='auto')
+(EngineCore pid=13538) INFO 06-11 14:07:15 [parallel_state.py:1422] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://172.17.0.6:34647 backend=nccl
+(EngineCore pid=13538) INFO 06-11 14:07:15 [parallel_state.py:1735] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(EngineCore pid=13538) INFO 06-11 14:07:16 [topk_topp_sampler.py:70] FlashInfer top-p/top-k sampling disabled via VLLM_USE_FLASHINFER_SAMPLER=0; using PyTorch-native sampler.
+(EngineCore pid=13538) INFO 06-11 14:07:16 [gpu_model_runner.py:5037] Starting to load model /root/autodl-tmp/ant-group-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2...
+(EngineCore pid=13538) INFO 06-11 14:07:16 [cuda.py:378] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(EngineCore pid=13538) INFO 06-11 14:07:16 [flash_attn.py:636] Using FlashAttention version 2
+(EngineCore pid=13538) INFO 06-11 14:07:16 [weight_utils.py:922] Filesystem type for checkpoints: XFS. Checkpoint size: 2.88 GiB. Available RAM: 623.86 GiB.
+(EngineCore pid=13538) INFO 06-11 14:07:16 [weight_utils.py:945] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(EngineCore pid=13538) Loading safetensors checkpoint shards:   0% Completed | 0/1 [00:00<?, ?it/s]
+(EngineCore pid=13538) Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  1.68it/s]
+(EngineCore pid=13538) Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  1.67it/s]
+(EngineCore pid=13538) 
+(EngineCore pid=13538) INFO 06-11 14:07:17 [default_loader.py:397] Loading weights took 0.70 seconds
+(EngineCore pid=13538) INFO 06-11 14:07:18 [gpu_model_runner.py:5132] Model loading took 2.98 GiB memory and 0.991678 seconds
+(EngineCore pid=13538) INFO 06-11 14:07:22 [backends.py:1089] Using cache directory: /root/.cache/vllm/torch_compile_cache/04d215e437/rank_0_0/backbone for vLLM's torch.compile
+(EngineCore pid=13538) INFO 06-11 14:07:22 [backends.py:1148] Dynamo bytecode transform time: 4.08 s
+(EngineCore pid=13538) INFO 06-11 14:07:26 [backends.py:378] Cache the graph of compile range (1, 8192) for later use
+(EngineCore pid=13538) INFO 06-11 14:07:29 [backends.py:393] Compiling a graph for compile range (1, 8192) takes 6.55 s
+(EngineCore pid=13538) INFO 06-11 14:07:32 [decorators.py:708] saved AOT compiled function to /root/.cache/vllm/torch_compile_cache/torch_aot_compile/b7a050161cbc64e686d584afe4e98d1ce912343bafe7502307f6d6390c629a1b/rank_0_0/model
+(EngineCore pid=13538) INFO 06-11 14:07:32 [monitor.py:53] torch.compile took 13.95 s in total
+(EngineCore pid=13538) INFO 06-11 14:07:32 [monitor.py:81] Initial profiling/warmup run took 0.30 s
+(EngineCore pid=13538) INFO 06-11 14:07:39 [gpu_model_runner.py:6279] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=35 (largest=256)
+(EngineCore pid=13538) INFO 06-11 14:07:40 [gpu_model_runner.py:6365] Estimated CUDA graph memory: 0.32 GiB total
+(EngineCore pid=13538) INFO 06-11 14:07:41 [gpu_worker.py:466] Available KV cache memory: 22.55 GiB
+(EngineCore pid=13538) INFO 06-11 14:07:41 [gpu_worker.py:481] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.8500 is equivalent to --gpu-memory-utilization=0.8397 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.8603. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+(EngineCore pid=13538) INFO 06-11 14:07:41 [kv_cache_utils.py:1733] GPU KV cache size: 844,368 tokens
+(EngineCore pid=13538) INFO 06-11 14:07:41 [kv_cache_utils.py:1734] Maximum concurrency for 2,048 tokens per request: 412.29x
+(EngineCore pid=13538) Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  10%|▉         | 5/51 [00:00<00:01, 44.29it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  20%|█▉        | 10/51 [00:00<00:00, 45.09it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  29%|██▉       | 15/51 [00:00<00:00, 42.06it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  39%|███▉      | 20/51 [00:00<00:00, 43.25it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  49%|████▉     | 25/51 [00:00<00:00, 43.92it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  59%|█████▉    | 30/51 [00:00<00:00, 42.10it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  69%|██████▊   | 35/51 [00:00<00:00, 40.04it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  78%|███████▊  | 40/51 [00:00<00:00, 41.45it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  88%|████████▊ | 45/51 [00:01<00:00, 40.61it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  98%|█████████▊| 50/51 [00:01<00:00, 41.82it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 51/51 [00:01<00:00, 40.76it/s]
+(EngineCore pid=13538) Capturing CUDA graphs (decode, FULL):   0%|          | 0/35 [00:00<?, ?it/s]Capturing CUDA graphs (decode, FULL):  17%|█▋        | 6/35 [00:00<00:00, 52.96it/s]Capturing CUDA graphs (decode, FULL):  34%|███▍      | 12/35 [00:00<00:00, 48.36it/s]Capturing CUDA graphs (decode, FULL):  51%|█████▏    | 18/35 [00:00<00:00, 50.46it/s]Capturing CUDA graphs (decode, FULL):  69%|██████▊   | 24/35 [00:00<00:00, 52.32it/s]Capturing CUDA graphs (decode, FULL):  86%|████████▌ | 30/35 [00:00<00:00, 53.01it/s]Capturing CUDA graphs (decode, FULL): 100%|██████████| 35/35 [00:00<00:00, 51.21it/s]
+(EngineCore pid=13538) INFO 06-11 14:07:43 [gpu_model_runner.py:6456] Graph capturing finished in 3 secs, took 0.29 GiB
+(EngineCore pid=13538) INFO 06-11 14:07:43 [gpu_worker.py:619] CUDA graph pool memory: 0.29 GiB (actual), 0.32 GiB (estimated), difference: 0.03 GiB (10.7%).
+(EngineCore pid=13538) INFO 06-11 14:07:43 [jit_monitor.py:54] Kernel JIT monitor activated — Triton JIT compilations during inference will be logged as warnings.
+(EngineCore pid=13538) INFO 06-11 14:07:43 [core.py:302] init engine (profile, create kv cache, warmup model) took 25.63 s (compilation: 13.95 s)
+(EngineCore pid=13538) INFO 06-11 14:07:44 [kernel.py:270] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+2026-06-11 14:07:44,170 [INFO] vLLM model loaded in 31949ms
+2026-06-11 14:07:44,171 [INFO] Built infer backend: vllm → m_infer.vllm_backend.VLLMBackend (model=/root/autodl-tmp/ant-group-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2)
+2026-06-11 14:07:44,172 [INFO]   ✓ vLLM 加载成功
+2026-06-11 14:07:44,172 [INFO] 
+测试 2: 单条推理（5 条保险问答）...
+(EngineCore pid=13538) WARNING 06-11 14:07:44 [jit_monitor.py:103] Triton kernel JIT compilation during inference: _compute_slot_mapping_kernel. This causes a latency spike; consider extending warmup to cover this shape/config.
+2026-06-11 14:07:45,507 [INFO]   [1] Q: 保险等待期内确诊疾病是否赔付？...
+2026-06-11 14:07:45,507 [INFO]       A: 一般需要等待（）个月后方可申请理赔。 A：1 B：3 C：6 D：12
+
+C 根据保险条款约定，百万医疗险一般需要等待（）个月后方可申请理赔。如被保险人在等待期...
+2026-06-11 14:07:45,507 [INFO]       tokens: prompt=8, generated=128, ttft=0ms, total=1335ms
+2026-06-11 14:07:45,904 [INFO]   [2] Q: 百万医疗险的免赔额是怎么计算的？...
+2026-06-11 14:07:45,904 [INFO]       A: 百万医疗险的免赔额是怎么计算的？
+免赔额是指保险公司不承担赔偿责任的金额部分。根据保险条款约定，百万医疗险的年度免赔额一般为1万元左右，即1万元以内的医疗费用需...
+2026-06-11 14:07:45,904 [INFO]       tokens: prompt=11, generated=128, ttft=0ms, total=396ms
+2026-06-11 14:07:46,300 [INFO]   [3] Q: 投保前未告知高血压，理赔会被拒吗？...
+2026-06-11 14:07:46,300 [INFO]       A: （ ） A：会 B：不会 C：视情况而定 D：不确定
+
+B 解析：保险销售行为可回溯管理暂行办法
+
+保险合同成立或者复效之日起（ ）后，投保人可以申请解除合同。...
+2026-06-11 14:07:46,300 [INFO]       tokens: prompt=11, generated=128, ttft=0ms, total=396ms
+2026-06-11 14:07:46,697 [INFO]   [4] Q: 什么是重大疾病保险？...
+2026-06-11 14:07:46,697 [INFO]       A: 它有哪些特点和功能？
+重大疾病保险是一种保险产品，旨在为被保险人因罹患重大疾病时提供经济保障。根据《保险法》相关规定，保险公司应履行如实告知义务，即保险公司有义...
+2026-06-11 14:07:46,697 [INFO]       tokens: prompt=5, generated=128, ttft=0ms, total=397ms
+2026-06-11 14:07:47,094 [INFO]   [5] Q: 保单现金价值是什么？...
+2026-06-11 14:07:47,094 [INFO]       A: 如何计算？ 保单现金价值是指保险合同约定的保险金额减去未到期责任准备金后的余额。通常情况下，现金价值等于已交保费加上累积利息（如果有的话）。现金价值是保单持有人...
+2026-06-11 14:07:47,094 [INFO]       tokens: prompt=6, generated=128, ttft=0ms, total=396ms
+2026-06-11 14:07:47,094 [INFO]   ✓ 单条推理: 5/5 非空
+2026-06-11 14:07:47,094 [INFO] 
+测试 3: Batch 推理（10 条）...
+(EngineCore pid=13538) WARNING 06-11 14:07:49 [jit_monitor.py:103] Triton kernel JIT compilation during inference: _topk_topp_kernel. This causes a latency spike; consider extending warmup to cover this shape/config.
+2026-06-11 14:07:49,708 [INFO]   Batch 推理完成: 10 条, 2614ms (261.4 ms/sample)
+2026-06-11 14:07:49,708 [INFO]   ✓ Batch 推理: 10/10 非空
+2026-06-11 14:07:49,708 [INFO] 
+测试 4: 延迟统计...
+2026-06-11 14:07:49,709 [INFO]   p50 first-token: 0.0ms
+2026-06-11 14:07:49,709 [INFO]   p50 total: 261.4ms
+2026-06-11 14:07:49,709 [INFO]   throughput: 3.8 samples/s
+2026-06-11 14:07:49,709 [INFO]   ✓ p50 latency 达标 (≤ 1200ms)
+2026-06-11 14:07:49,709 [INFO]   ✓ 延迟统计完成
+2026-06-11 14:07:49,709 [INFO] 
+测试 5: 评测指标 + 报告生成...
+2026-06-11 14:07:49,881 [INFO] Using default tokenizer.
+2026-06-11 14:07:49,881 [INFO]   Accuracy: 0.0000
+2026-06-11 14:07:49,881 [INFO]   BLEU-4: 0.0000
+2026-06-11 14:07:49,881 [INFO]   ROUGE-L: 0.0235
+2026-06-11 14:07:49,882 [INFO] JSON report saved to /root/autodl-tmp/ant-group-dpo/scripts/../reports/smoke_m05.json
+2026-06-11 14:07:49,882 [INFO] Markdown report saved to /root/autodl-tmp/ant-group-dpo/scripts/../reports/smoke_m05.md
+2026-06-11 14:07:49,882 [INFO]   JSON report: /root/autodl-tmp/ant-group-dpo/scripts/../reports/smoke_m05.json
+2026-06-11 14:07:49,882 [INFO]   Markdown report: /root/autodl-tmp/ant-group-dpo/scripts/../reports/smoke_m05.md
+2026-06-11 14:07:49,882 [INFO]   ✓ 报告生成完成
+(EngineCore pid=13538) INFO 06-11 14:07:49 [core.py:1266] Shutdown initiated (timeout=0)
+(EngineCore pid=13538) INFO 06-11 14:07:49 [core.py:1289] Shutdown complete
+2026-06-11 14:07:50,623 [INFO] vLLM backend shutdown
+2026-06-11 14:07:50,623 [INFO] 
+============================================================
+2026-06-11 14:07:50,624 [INFO] M05 Smoke Test 汇总
+2026-06-11 14:07:50,624 [INFO] ============================================================
+2026-06-11 14:07:50,624 [INFO]   vLLM 加载: ✅
+2026-06-11 14:07:50,624 [INFO]   单条推理: ✅ (5/5)
+2026-06-11 14:07:50,624 [INFO]   Batch 推理: ✅ (10/10)
+2026-06-11 14:07:50,624 [INFO]   延迟统计: ✅ (p50=261ms)
+2026-06-11 14:07:50,624 [INFO]   评测指标: ✅ (acc=0.0000, bleu=0.0000, rouge=0.0235)
+2026-06-11 14:07:50,624 [INFO]   报告产出: ✅ (/root/autodl-tmp/ant-group-dpo/scripts/../reports/smoke_m05.json)
+2026-06-11 14:07:50,624 [INFO] 
+🎉 M05 冒烟测试全部通过!

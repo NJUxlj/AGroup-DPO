@@ -1,0 +1,121 @@
+# 训练节点多后端编排 - M01 阶段交付物 D-M01-05a
+# 支持 deepspeed / fsdp / megatron / accelerate 4 种后端的训练编排
+
+version: "3.8"
+
+x-common-env: &common-env
+  NCCL_DEBUG: INFO
+  NCCL_IB_DISABLE: "0"
+  NCCL_SOCKET_IFNAME: "^lo,docker"
+  TOKENIZERS_PARALLELISM: "false"
+  PYTHONUNBUFFERED: "1"
+  HF_HOME: /shared/cache/hf
+  TRANSFORMERS_CACHE: /shared/cache/hf
+  TORCH_HOME: /shared/cache/torch
+
+services:
+  # 默认训练入口 - DeepSpeed ZeRO3
+  train-deepspeed:
+    image: copaw-dpo-deepspeed:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.deepspeed
+    runtime: nvidia
+    environment:
+      <<: *common-env
+      DISTRIBUTED_BACKEND: deepspeed
+      CUDA_VISIBLE_DEVICES: "0,1"
+    volumes:
+      - /shared:/shared
+      - ../src:/workspace/src
+      - ../configs:/workspace/configs
+      - ../scripts:/workspace/scripts
+      - ../data:/workspace/data
+      - ../saves:/workspace/saves
+    working_dir: /workspace
+    command: deepspeed --num_gpus=2 src/train.py --config configs/train_dpo_qwen2_5_1_5b_insurance.yaml --deepspeed configs/deepspeed/zero3.json
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 2
+              capabilities: [gpu]
+
+  # FSDP 训练
+  train-fsdp:
+    image: copaw-dpo-fsdp:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.fsdp
+    runtime: nvidia
+    environment:
+      <<: *common-env
+      DISTRIBUTED_BACKEND: fsdp
+      CUDA_VISIBLE_DEVICES: "0,1"
+    volumes:
+      - /shared:/shared
+      - ../src:/workspace/src
+      - ../configs:/workspace/configs
+      - ../scripts:/workspace/scripts
+      - ../data:/workspace/data
+      - ../saves:/workspace/saves
+    working_dir: /workspace
+    command: torchrun --nproc_per_node=2 src/train.py --config configs/train_dpo_qwen2_5_1_5b_insurance.yaml
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 2
+              capabilities: [gpu]
+
+  # Megatron 训练 (接口预留)
+  train-megatron:
+    image: copaw-dpo-megatron:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.megatron
+    runtime: nvidia
+    environment:
+      <<: *common-env
+      DISTRIBUTED_BACKEND: megatron
+      CUDA_VISIBLE_DEVICES: "0,1"
+    volumes:
+      - /shared:/shared
+      - ../src:/workspace/src
+      - ../configs:/workspace/configs
+    working_dir: /workspace
+    command: echo "Megatron interface reserved; not started for 1.5B"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 2
+              capabilities: [gpu]
+
+  # accelerate 单机多卡
+  train-accelerate:
+    image: copaw-dpo-accelerate:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.accelerate
+    runtime: nvidia
+    environment:
+      <<: *common-env
+      DISTRIBUTED_BACKEND: accelerate
+      CUDA_VISIBLE_DEVICES: "0,1"
+    volumes:
+      - /shared:/shared
+      - ../src:/workspace/src
+      - ../configs:/workspace/configs
+    working_dir: /workspace
+    command: accelerate launch --num_processes=2 --num_machines=1 --mixed_precision=bf16 src/train.py --config configs/train_dpo_qwen2_5_1_5b_insurance.yaml
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 2
+              capabilities: [gpu]

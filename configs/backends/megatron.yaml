@@ -1,0 +1,13 @@
+# Megatron-LM 后端配置模板 (M04)
+# 接口预留。当前 1.5B 模型触发 NotImplementedError。
+# 模型规模扩展到 7B+ 后启用。
+
+trainer:
+  distributed_backend: megatron   # 当前会触发 NotImplementedError
+
+megatron:
+  tensor_model_parallel_size: 1   # 7B+ 时调整为 2
+  pipeline_model_parallel_size: 1
+  num_layers: 28                  # Qwen2.5-1.5B: 28 layers
+  hidden_size: 1536
+  num_attention_heads: 12

@@ -1,0 +1,23 @@
+# vLLM 推理后端 layer - M01 阶段交付物 D-M01-03
+# copaw-dpo-infer-vllm:latest
+
+FROM copaw-dpo-base:latest
+
+LABEL maintainer="ant-group-dpo-team" \
+      version="1.0" \
+      description="vLLM 推理加速后端 layer"
+
+# 安装 vLLM (与 CUDA 12.4 / PyTorch 2.4 兼容的版本)
+RUN pip install --no-cache-dir \
+        vllm==0.5.4 \
+        openai==1.40.0 \
+        fastapi==0.112.0 \
+        uvicorn[standard]==0.30.5 \
+        pydantic==2.8.2
+
+# 验证
+RUN python -c "import vllm; print(f'vllm={vllm.__version__}')" \
+    && python -c "from vllm import LLM, SamplingParams; print('vllm imports OK')"
+
+WORKDIR /workspace
+CMD ["/bin/bash"]

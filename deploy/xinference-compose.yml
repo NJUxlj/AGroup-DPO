@@ -1,0 +1,35 @@
+# xinference 推理服务编排 - M01 阶段交付物 D-M01-05b
+# M05 引用: 用于 xinference 推理模式
+
+version: "3.8"
+
+services:
+  xinference:
+    image: copaw-dpo-infer-xinfer:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.infer-xinfer
+    runtime: nvidia
+    environment:
+      - XINFERENCE_HOME=/shared/xinference
+      - CUDA_VISIBLE_DEVICES=0
+    volumes:
+      - /shared:/shared
+      - ../merged_models:/workspace/merged_models:ro
+    ports:
+      - "9997:9997"
+    working_dir: /workspace
+    command: xinference-local -H 0.0.0.0 -p 9997
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9997/v1/models"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

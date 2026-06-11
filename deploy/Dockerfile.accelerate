@@ -1,0 +1,21 @@
+# accelerate 后端 layer - M01 阶段交付物 D-M01-02
+# copaw-dpo-accelerate:latest
+
+FROM copaw-dpo-base:latest
+
+LABEL maintainer="ant-group-dpo-team" \
+      version="1.0" \
+      description="HuggingFace accelerate 后端 layer (单机多卡调试用)"
+
+# accelerate 已在 base 镜像中预装 0.33.0
+# 此处补全其 launcher 与 tensorboard
+RUN pip install --no-cache-dir \
+        accelerate==0.33.0 \
+        nvtx==0.2.10
+
+# 验证
+RUN python -c "import accelerate; print(f'accelerate={accelerate.__version__}')" \
+    && accelerate --help > /dev/null && echo "accelerate CLI OK"
+
+WORKDIR /workspace
+CMD ["/bin/bash"]

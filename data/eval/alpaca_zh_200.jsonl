@@ -1,0 +1,8 @@
+{"id": "alpaca_0001", "category": "general", "question": "请解释什么是人工智能？", "reference_answer": "人工智能是模拟人类智能的计算机系统，能够执行学习、推理、感知等任务。", "answer_type": "open", "judge_required": false}
+{"id": "alpaca_0002", "category": "general", "question": "太阳系有多少颗行星？", "reference_answer": "太阳系有8颗行星：水星、金星、地球、火星、木星、土星、天王星、海王星。", "answer_type": "open", "judge_required": false}
+{"id": "alpaca_0003", "category": "general", "question": "请写一首关于秋天的五言绝句", "reference_answer": "秋风生渭水，落叶满长安。独在异乡客，月是故乡明。", "answer_type": "open", "judge_required": false}
+{"id": "alpaca_0004", "category": "math", "question": "1+2+3+...+100 的和是多少？", "reference_answer": "5050", "answer_type": "open", "judge_required": false}
+{"id": "alpaca_0005", "category": "general", "question": "中国最大的淡水湖是什么？", "reference_answer": "中国最大的淡水湖是鄱阳湖，位于江西省北部。", "answer_type": "open", "judge_required": false}
+{"id": "alpaca_0006", "category": "general", "question": "简述光合作用的过程", "reference_answer": "光合作用是植物利用阳光、水和二氧化碳合成有机物并释放氧气的过程。", "answer_type": "open", "judge_required": false}
+{"id": "alpaca_0007", "category": "general", "question": "什么是互联网？", "reference_answer": "互联网是全球性计算机网络，通过TCP/IP协议连接数十亿设备，提供WWW、电子邮件等服务。", "answer_type": "open", "judge_required": false}
+{"id": "alpaca_0008", "category": "general", "question": "介绍一下中国的四大发明", "reference_answer": "中国四大发明是造纸术、指南针、火药和印刷术，对世界文明发展产生了重大影响。", "answer_type": "open", "judge_required": false}

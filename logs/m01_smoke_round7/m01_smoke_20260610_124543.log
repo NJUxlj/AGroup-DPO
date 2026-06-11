@@ -1,0 +1,557 @@
+[0;32m[12:45:43][0m ===== M01 烟雾测试启动 20260610_124543 =====
+[0;32m[12:45:43][0m PROJECT_ROOT=/root/autodl-tmp/ant-group-dpo
+[0;32m[12:45:43][0m conda env=llm
+[0;32m[12:45:43][0m GPU: GPU 0: NVIDIA GeForce RTX 5090 (UUID: GPU-f9681973-b852-6cc2-3dc1-5b49a788fb6d)
+[0;32m[12:45:43][0m ==== 步骤 0a: 软链自愈 /root/miniconda ====
+[0;32m[12:45:43][0m 软链已存在: lrwxrwxrwx 1 root root 27 Jun 10 10:48 /root/miniconda -> /root/autodl-tmp/miniconda3
+[0;32m[12:45:43][0m ==== 步骤 0b: 准备 conda env: llm ====
+[0;32m[12:45:43][0m conda env llm 已存在, 跳过创建
+[0;32m[12:45:43][0m 当前 Python: /root/autodl-tmp/envs/llm/bin/python -> Python 3.12.13
+[0;32m[12:45:43][0m ==== 步骤 1: 安装 PyTorch 2.7.1+cu128 + torchvision + torchaudio ====
+[0;32m[12:45:45][0m PyTorch 2.7.1 已安装, 跳过
+[0;32m[12:45:45][0m ==== 步骤 2: GPU 验证 ====
+torch=2.7.1+cu128
+cuda=12.8, cudnn=90701
+GPU 数量=2
+  GPU0: NVIDIA GeForce RTX 5090, capability=(12, 0)
+  GPU1: NVIDIA GeForce RTX 5090, capability=(12, 0)
+[0;32m[12:45:46][0m ==== 步骤 3: 安装训练依赖 (transformers/LLaMA-Factory/DeepSpeed) ====
+Looking in indexes: http://mirrors.aliyun.com/pypi/simple
+Requirement already satisfied: transformers==4.43.4 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (4.43.4)
+Requirement already satisfied: accelerate<=1.0.1,>=0.34.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (1.0.1)
+Requirement already satisfied: datasets==2.20.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (2.20.0)
+Requirement already satisfied: peft==0.11.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (0.11.1)
+Requirement already satisfied: trl==0.9.6 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (0.9.6)
+Requirement already satisfied: sentencepiece==0.2.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (0.2.0)
+Requirement already satisfied: tokenizers==0.19.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (0.19.1)
+Requirement already satisfied: protobuf!=4.24.0,<5.0.0,>=3.19.6 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (4.25.9)
+Requirement already satisfied: bitsandbytes==0.45.5 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (0.45.5)
+Requirement already satisfied: llamafactory==0.9.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (0.9.1)
+Requirement already satisfied: deepspeed==0.14.4 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (0.14.4)
+Requirement already satisfied: nvtx==0.2.10 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (0.2.10)
+Requirement already satisfied: numpy==1.26.4 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (1.26.4)
+Requirement already satisfied: scipy==1.13.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (1.13.1)
+Requirement already satisfied: pandas==2.2.2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (2.2.2)
+Requirement already satisfied: pyyaml==6.0.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (6.0.1)
+Requirement already satisfied: tqdm==4.66.4 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (4.66.4)
+Requirement already satisfied: tensorboard==2.17.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (2.17.0)
+Requirement already satisfied: filelock in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from transformers==4.43.4) (3.29.0)
+Requirement already satisfied: huggingface-hub<1.0,>=0.23.2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from transformers==4.43.4) (0.36.2)
+Requirement already satisfied: packaging>=20.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from transformers==4.43.4) (26.0)
+Requirement already satisfied: regex!=2019.12.17 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from transformers==4.43.4) (2026.5.9)
+Requirement already satisfied: requests in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from transformers==4.43.4) (2.34.2)
+Requirement already satisfied: safetensors>=0.4.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from transformers==4.43.4) (0.8.0)
+Requirement already satisfied: pyarrow>=15.0.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from datasets==2.20.0) (24.0.0)
+Requirement already satisfied: pyarrow-hotfix in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from datasets==2.20.0) (0.7)
+Requirement already satisfied: dill<0.3.9,>=0.3.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from datasets==2.20.0) (0.3.8)
+Requirement already satisfied: xxhash in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from datasets==2.20.0) (3.7.0)
+Requirement already satisfied: multiprocess in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from datasets==2.20.0) (0.70.16)
+Requirement already satisfied: fsspec<=2024.5.0,>=2023.1.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from fsspec[http]<=2024.5.0,>=2023.1.0->datasets==2.20.0) (2024.5.0)
+Requirement already satisfied: aiohttp in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from datasets==2.20.0) (3.14.1)
+Requirement already satisfied: psutil in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from peft==0.11.1) (7.2.2)
+Requirement already satisfied: torch>=1.13.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from peft==0.11.1) (2.7.1+cu128)
+Requirement already satisfied: tyro>=0.5.11 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from trl==0.9.6) (0.8.14)
+Requirement already satisfied: gradio<5.0.0,>=4.0.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from llamafactory==0.9.1) (4.44.1)
+Requirement already satisfied: einops in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from llamafactory==0.9.1) (0.8.2)
+Requirement already satisfied: tiktoken in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from llamafactory==0.9.1) (0.13.0)
+Requirement already satisfied: uvicorn in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from llamafactory==0.9.1) (0.49.0)
+Requirement already satisfied: pydantic in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from llamafactory==0.9.1) (2.13.4)
+Requirement already satisfied: fastapi in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from llamafactory==0.9.1) (0.136.3)
+Requirement already satisfied: sse-starlette in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from llamafactory==0.9.1) (3.4.4)
+Requirement already satisfied: matplotlib>=3.7.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from llamafactory==0.9.1) (3.10.9)
+Requirement already satisfied: fire in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from llamafactory==0.9.1) (0.7.1)
+Requirement already satisfied: av in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from llamafactory==0.9.1) (17.1.0)
+Requirement already satisfied: hjson in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from deepspeed==0.14.4) (3.1.0)
+Requirement already satisfied: ninja in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from deepspeed==0.14.4) (1.13.0)
+Requirement already satisfied: nvidia-ml-py in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from deepspeed==0.14.4) (13.610.43)
+Requirement already satisfied: py-cpuinfo in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from deepspeed==0.14.4) (9.0.0)
+Requirement already satisfied: python-dateutil>=2.8.2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from pandas==2.2.2) (2.9.0.post0)
+Requirement already satisfied: pytz>=2020.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from pandas==2.2.2) (2026.2)
+Requirement already satisfied: tzdata>=2022.7 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from pandas==2.2.2) (2026.2)
+Requirement already satisfied: absl-py>=0.4 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from tensorboard==2.17.0) (2.4.0)
+Requirement already satisfied: grpcio>=1.48.2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from tensorboard==2.17.0) (1.81.0)
+Requirement already satisfied: markdown>=2.6.8 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from tensorboard==2.17.0) (3.10.2)
+Requirement already satisfied: setuptools>=41.0.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from tensorboard==2.17.0) (82.0.1)
+Requirement already satisfied: six>1.9 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from tensorboard==2.17.0) (1.17.0)
+Requirement already satisfied: tensorboard-data-server<0.8.0,>=0.7.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from tensorboard==2.17.0) (0.7.2)
+Requirement already satisfied: werkzeug>=1.0.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from tensorboard==2.17.0) (3.1.8)
+Requirement already satisfied: aiofiles<24.0,>=22.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (23.2.1)
+Requirement already satisfied: anyio<5.0,>=3.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (4.13.0)
+Requirement already satisfied: ffmpy in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (1.0.0)
+Requirement already satisfied: gradio-client==1.3.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (1.3.0)
+Requirement already satisfied: httpx>=0.24.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (0.28.1)
+Requirement already satisfied: importlib-resources<7.0,>=1.3 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (6.5.2)
+Requirement already satisfied: jinja2<4.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (3.1.6)
+Requirement already satisfied: markupsafe~=2.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (2.1.5)
+Requirement already satisfied: orjson~=3.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (3.11.9)
+Requirement already satisfied: pillow<11.0,>=8.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (10.4.0)
+Requirement already satisfied: pydub in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (0.25.1)
+Requirement already satisfied: python-multipart>=0.0.9 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (0.0.32)
+Requirement already satisfied: ruff>=0.2.2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (0.15.16)
+Requirement already satisfied: semantic-version~=2.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (2.10.0)
+Requirement already satisfied: tomlkit==0.12.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (0.12.0)
+Requirement already satisfied: typer<1.0,>=0.12 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (0.26.7)
+Requirement already satisfied: typing-extensions~=4.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (4.15.0)
+Requirement already satisfied: urllib3~=2.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (2.7.0)
+Requirement already satisfied: websockets<13.0,>=10.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from gradio-client==1.3.0->gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (12.0)
+Requirement already satisfied: idna>=2.8 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from anyio<5.0,>=3.0->gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (3.18)
+Requirement already satisfied: starlette>=0.46.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from fastapi->llamafactory==0.9.1) (1.2.1)
+Requirement already satisfied: typing-inspection>=0.4.2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from fastapi->llamafactory==0.9.1) (0.4.2)
+Requirement already satisfied: annotated-doc>=0.0.2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from fastapi->llamafactory==0.9.1) (0.0.4)
+Requirement already satisfied: hf-xet<2.0.0,>=1.1.3 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from huggingface-hub<1.0,>=0.23.2->transformers==4.43.4) (1.5.1)
+Requirement already satisfied: contourpy>=1.0.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from matplotlib>=3.7.0->llamafactory==0.9.1) (1.3.3)
+Requirement already satisfied: cycler>=0.10 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from matplotlib>=3.7.0->llamafactory==0.9.1) (0.12.1)
+Requirement already satisfied: fonttools>=4.22.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from matplotlib>=3.7.0->llamafactory==0.9.1) (4.63.0)
+Requirement already satisfied: kiwisolver>=1.3.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from matplotlib>=3.7.0->llamafactory==0.9.1) (1.5.0)
+Requirement already satisfied: pyparsing>=3 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from matplotlib>=3.7.0->llamafactory==0.9.1) (3.3.2)
+Requirement already satisfied: sympy>=1.13.3 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (1.14.0)
+Requirement already satisfied: networkx in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (3.6.1)
+Requirement already satisfied: nvidia-cuda-nvrtc-cu12==12.8.61 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (12.8.61)
+Requirement already satisfied: nvidia-cuda-runtime-cu12==12.8.57 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (12.8.57)
+Requirement already satisfied: nvidia-cuda-cupti-cu12==12.8.57 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (12.8.57)
+Requirement already satisfied: nvidia-cudnn-cu12==9.7.1.26 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (9.7.1.26)
+Requirement already satisfied: nvidia-cublas-cu12==12.8.3.14 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (12.8.3.14)
+Requirement already satisfied: nvidia-cufft-cu12==11.3.3.41 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (11.3.3.41)
+Requirement already satisfied: nvidia-curand-cu12==10.3.9.55 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (10.3.9.55)
+Requirement already satisfied: nvidia-cusolver-cu12==11.7.2.55 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (11.7.2.55)
+Requirement already satisfied: nvidia-cusparse-cu12==12.5.7.53 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (12.5.7.53)
+Requirement already satisfied: nvidia-cusparselt-cu12==0.6.3 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (0.6.3)
+Requirement already satisfied: nvidia-nccl-cu12==2.26.2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (2.26.2)
+Requirement already satisfied: nvidia-nvtx-cu12==12.8.55 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (12.8.55)
+Requirement already satisfied: nvidia-nvjitlink-cu12==12.8.61 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (12.8.61)
+Requirement already satisfied: nvidia-cufile-cu12==1.13.0.11 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (1.13.0.11)
+Requirement already satisfied: triton==3.3.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from torch>=1.13.0->peft==0.11.1) (3.3.1)
+Requirement already satisfied: shellingham>=1.3.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from typer<1.0,>=0.12->gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (1.5.4)
+Requirement already satisfied: rich>=13.8.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from typer<1.0,>=0.12->gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (15.0.0)
+Requirement already satisfied: docstring-parser>=0.16 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from tyro>=0.5.11->trl==0.9.6) (0.18.0)
+Requirement already satisfied: shtab>=1.5.6 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from tyro>=0.5.11->trl==0.9.6) (1.8.0)
+Requirement already satisfied: aiohappyeyeballs>=2.5.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from aiohttp->datasets==2.20.0) (2.6.2)
+Requirement already satisfied: aiosignal>=1.4.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from aiohttp->datasets==2.20.0) (1.4.0)
+Requirement already satisfied: attrs>=17.3.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from aiohttp->datasets==2.20.0) (26.1.0)
+Requirement already satisfied: frozenlist>=1.1.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from aiohttp->datasets==2.20.0) (1.8.0)
+Requirement already satisfied: multidict<7.0,>=4.5 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from aiohttp->datasets==2.20.0) (6.7.1)
+Requirement already satisfied: propcache>=0.2.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from aiohttp->datasets==2.20.0) (0.5.2)
+Requirement already satisfied: yarl<2.0,>=1.17.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from aiohttp->datasets==2.20.0) (1.24.2)
+Requirement already satisfied: certifi in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from httpx>=0.24.1->gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (2026.5.20)
+Requirement already satisfied: httpcore==1.* in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from httpx>=0.24.1->gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (1.0.9)
+Requirement already satisfied: h11>=0.16 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from httpcore==1.*->httpx>=0.24.1->gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (0.16.0)
+Requirement already satisfied: annotated-types>=0.6.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from pydantic->llamafactory==0.9.1) (0.7.0)
+Requirement already satisfied: pydantic-core==2.46.4 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from pydantic->llamafactory==0.9.1) (2.46.4)
+Requirement already satisfied: charset_normalizer<4,>=2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from requests->transformers==4.43.4) (3.4.7)
+Requirement already satisfied: markdown-it-py>=2.2.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from rich>=13.8.0->typer<1.0,>=0.12->gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (4.2.0)
+Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from rich>=13.8.0->typer<1.0,>=0.12->gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (2.20.0)
+Requirement already satisfied: mdurl~=0.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from markdown-it-py>=2.2.0->rich>=13.8.0->typer<1.0,>=0.12->gradio<5.0.0,>=4.0.0->llamafactory==0.9.1) (0.1.2)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from sympy>=1.13.3->torch>=1.13.0->peft==0.11.1) (1.3.0)
+Requirement already satisfied: click>=7.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from uvicorn->llamafactory==0.9.1) (8.4.1)
+Requirement already satisfied: termcolor in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from fire->llamafactory==0.9.1) (3.3.0)
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+[0;32m[12:45:47][0m ==== 步骤 4: 推理依赖 (vLLM + xinference) 暂不安装 ====
+[1;33m[WARN][0m vllm/xinference 暂不装 (M01 暂不要求, 推 M02 处理)
+[1;33m[WARN][0m   - vllm 0.5.4 强依赖 torch 2.4.0 -> 破坏 torch 2.7.1
+[1;33m[WARN][0m   - vllm 0.8.5+ 要 transformers>=4.51.1 -> 破坏 llamafactory 0.9.1
+[1;33m[WARN][0m   - M02 任务: 同步升级 transformers + llamafactory, 再装 vllm
+[0;32m[12:45:47][0m ==== 步骤 5: 安装评测依赖 ====
+Looking in indexes: http://mirrors.aliyun.com/pypi/simple
+Requirement already satisfied: sacrebleu==2.4.2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (2.4.2)
+Requirement already satisfied: rouge-score==0.1.2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (0.1.2)
+Requirement already satisfied: nltk==3.8.1 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (3.8.1)
+Requirement already satisfied: jiwer==3.0.3 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (3.0.3)
+Requirement already satisfied: portalocker in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from sacrebleu==2.4.2) (3.2.0)
+Requirement already satisfied: regex in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from sacrebleu==2.4.2) (2026.5.9)
+Requirement already satisfied: tabulate>=0.8.9 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from sacrebleu==2.4.2) (0.10.0)
+Requirement already satisfied: numpy>=1.17 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from sacrebleu==2.4.2) (1.26.4)
+Requirement already satisfied: colorama in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from sacrebleu==2.4.2) (0.4.6)
+Requirement already satisfied: lxml in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from sacrebleu==2.4.2) (6.1.1)
+Requirement already satisfied: absl-py in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from rouge-score==0.1.2) (2.4.0)
+Requirement already satisfied: six>=1.14.0 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from rouge-score==0.1.2) (1.17.0)
+Requirement already satisfied: click in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from nltk==3.8.1) (8.4.1)
+Requirement already satisfied: joblib in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from nltk==3.8.1) (1.5.3)
+Requirement already satisfied: tqdm in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from nltk==3.8.1) (4.66.4)
+Requirement already satisfied: rapidfuzz<4,>=3 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages (from jiwer==3.0.3) (3.14.5)
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+[0;32m[12:45:47][0m ==== 步骤 6: 模型路径确认 ====
+[0;32m[12:45:47][0m 模型已存在: /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct
+total 3026376
+drwxr-xr-x 3 root root       4096 Mar 30 16:01 .
+drwxr-xr-x 7 root root        149 May 21 23:50 ..
+drwxr-xr-x 2 root root          6 Mar 30 16:01 ._____temp
+-rw------- 1 root root        709 Mar 30 16:01 .msc
+-rw-r--r-- 1 root root         36 Mar 30 16:01 .mv
+-rw-r--r-- 1 root root      11343 Mar 30 15:59 LICENSE
+-rw-r--r-- 1 root root       4917 Mar 30 15:59 README.md
+-rw-r--r-- 1 root root        660 Mar 30 15:59 config.json
+-rw-r--r-- 1 root root          2 Mar 30 15:59 configuration.json
+[0;32m[12:45:47][0m ==== 步骤 7: 启动 5 项烟雾测试 (单步失败不阻塞) ====
+[0;32m[12:45:47][0m [smoke-1/5] 评测依赖单元测试 ...
+[smoke-eval] starting ...
+[smoke-eval] [step1] checking deps ...
+[smoke-eval] sacrebleu=2.4.2, rouge_scorer OK
+[smoke-eval] [step2] computing BLEU-4 ...
+[smoke-eval] BLEU-4: 0.00
+[smoke-eval] [step3] computing ROUGE-L ...
+[smoke-eval] ROUGE-L: 0.2000
+[smoke-eval] [step4] computing accuracy ...
+[smoke-eval] accuracy: 0.00
+
+[smoke-eval] report: {
+  "n_samples": 5,
+  "metrics": {
+    "bleu_4": 0.0,
+    "rouge_l": 0.2,
+    "accuracy": 0.0
+  }
+}
+[smoke-eval] status: PASS (3/3 metrics produced)
+[0;32m[12:45:48][0m [smoke-2/5] vLLM 推理冒烟 ...
+Traceback (most recent call last):
+  File "/root/autodl-tmp/ant-group-dpo/scripts/smoke_vllm.py", line 71, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/root/autodl-tmp/ant-group-dpo/scripts/smoke_vllm.py", line 20, in main
+    from vllm import LLM, SamplingParams
+ModuleNotFoundError: No module named 'vllm'
+[1;33m[WARN][0m vLLM smoke FAIL (继续后续)
+[0;32m[12:45:48][0m [smoke-3/5] xinference 推理冒烟 ...
+[smoke-xinfer] 20260610_124548 starting
+[smoke-xinfer] launching xinference ...
+[smoke-xinfer] xinference pid=14223
+[smoke-xinfer] waiting for xinference ready ...
+[smoke-xinfer] registering model ...
+curl: (7) Failed to connect to 127.0.0.1 port 9997 after 0 ms: Connection refused
+[smoke-xinfer] register response: register_failed
+[smoke-xinfer] [FAIL] 保险等待期内确诊是否赔付？ -> 
+[smoke-xinfer] [FAIL] 百万医疗险的免赔额是怎么计算的？ -> 
+[smoke-xinfer] [FAIL] 投保前未告知高血压, 理赔会被拒吗？ -> 
+[smoke-xinfer] [FAIL] 什么是重大疾病保险？ -> 
+[smoke-xinfer] [FAIL] 保单现金价值是什么？ -> 
+[smoke-xinfer] pass=0/5
+[smoke-xinfer] stopping xinference ...
+[smoke-xinfer] status: FAIL
+[1;33m[WARN][0m xinference smoke FAIL (继续后续)
+[0;32m[12:46:49][0m [smoke-4/5] LLaMA-Factory SFT 冒烟 (5 步, 单卡 CUDA_VISIBLE_DEVICES=0) ...
+[2026-06-10 12:46:53,010] [INFO] [real_accelerator.py:203:get_accelerator] Setting ds_accelerator to cuda (auto detect)
+/root/autodl-tmp/envs/llm/lib/python3.12/site-packages/deepspeed/runtime/zero/linear.py:47: FutureWarning: `torch.cuda.amp.custom_fwd(args...)` is deprecated. Please use `torch.amp.custom_fwd(args..., device_type='cuda')` instead.
+  @autocast_custom_fwd
+/root/autodl-tmp/envs/llm/lib/python3.12/site-packages/deepspeed/runtime/zero/linear.py:66: FutureWarning: `torch.cuda.amp.custom_bwd(args...)` is deprecated. Please use `torch.amp.custom_bwd(args..., device_type='cuda')` instead.
+  @autocast_custom_bwd
+[93m [WARNING] [0m async_io requires the dev libaio .so object and headers but these were not found.
+[93m [WARNING] [0m async_io: please install the libaio-dev package with apt
+[93m [WARNING] [0m If libaio is already installed (perhaps from source), try setting the CFLAGS and LDFLAGS environment variables to where it can be found.
+[93m [WARNING] [0m Please specify the CUTLASS repo directory as environment variable $CUTLASS_PATH
+[93m [WARNING] [0m sparse_attn requires a torch version >= 1.5 and < 2.0 but detected 2.7
+[93m [WARNING] [0m using untested triton version (3.3.1), only 1.0.0 is known to be compatible
+[INFO|2026-06-10 12:46:54] llamafactory.hparams.parser:355 >> Process rank: 0, device: cuda:0, n_gpu: 1, distributed training: False, compute dtype: torch.bfloat16
+[INFO|configuration_utils.py:731] 2026-06-10 12:46:54,665 >> loading configuration file /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct/config.json
+[INFO|configuration_utils.py:800] 2026-06-10 12:46:54,665 >> Model config Qwen2Config {
+  "_name_or_path": "/root/autodl-tmp/models/Qwen2.5-1.5B-Instruct",
+  "architectures": [
+    "Qwen2ForCausalLM"
+  ],
+  "attention_dropout": 0.0,
+  "bos_token_id": 151643,
+  "eos_token_id": 151645,
+  "hidden_act": "silu",
+  "hidden_size": 1536,
+  "initializer_range": 0.02,
+  "intermediate_size": 8960,
+  "max_position_embeddings": 32768,
+  "max_window_layers": 21,
+  "model_type": "qwen2",
+  "num_attention_heads": 12,
+  "num_hidden_layers": 28,
+  "num_key_value_heads": 2,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 1000000.0,
+  "sliding_window": null,
+  "tie_word_embeddings": true,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.43.4",
+  "use_cache": true,
+  "use_sliding_window": false,
+  "vocab_size": 151936
+}
+
+[INFO|tokenization_utils_base.py:2287] 2026-06-10 12:46:54,666 >> loading file vocab.json
+[INFO|tokenization_utils_base.py:2287] 2026-06-10 12:46:54,666 >> loading file merges.txt
+[INFO|tokenization_utils_base.py:2287] 2026-06-10 12:46:54,666 >> loading file tokenizer.json
+[INFO|tokenization_utils_base.py:2287] 2026-06-10 12:46:54,666 >> loading file added_tokens.json
+[INFO|tokenization_utils_base.py:2287] 2026-06-10 12:46:54,666 >> loading file special_tokens_map.json
+[INFO|tokenization_utils_base.py:2287] 2026-06-10 12:46:54,666 >> loading file tokenizer_config.json
+[INFO|tokenization_utils_base.py:2533] 2026-06-10 12:46:54,840 >> Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+[INFO|configuration_utils.py:731] 2026-06-10 12:46:54,842 >> loading configuration file /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct/config.json
+[INFO|configuration_utils.py:800] 2026-06-10 12:46:54,842 >> Model config Qwen2Config {
+  "_name_or_path": "/root/autodl-tmp/models/Qwen2.5-1.5B-Instruct",
+  "architectures": [
+    "Qwen2ForCausalLM"
+  ],
+  "attention_dropout": 0.0,
+  "bos_token_id": 151643,
+  "eos_token_id": 151645,
+  "hidden_act": "silu",
+  "hidden_size": 1536,
+  "initializer_range": 0.02,
+  "intermediate_size": 8960,
+  "max_position_embeddings": 32768,
+  "max_window_layers": 21,
+  "model_type": "qwen2",
+  "num_attention_heads": 12,
+  "num_hidden_layers": 28,
+  "num_key_value_heads": 2,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 1000000.0,
+  "sliding_window": null,
+  "tie_word_embeddings": true,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.43.4",
+  "use_cache": true,
+  "use_sliding_window": false,
+  "vocab_size": 151936
+}
+
+[INFO|tokenization_utils_base.py:2287] 2026-06-10 12:46:54,843 >> loading file vocab.json
+[INFO|tokenization_utils_base.py:2287] 2026-06-10 12:46:54,843 >> loading file merges.txt
+[INFO|tokenization_utils_base.py:2287] 2026-06-10 12:46:54,843 >> loading file tokenizer.json
+[INFO|tokenization_utils_base.py:2287] 2026-06-10 12:46:54,843 >> loading file added_tokens.json
+[INFO|tokenization_utils_base.py:2287] 2026-06-10 12:46:54,843 >> loading file special_tokens_map.json
+[INFO|tokenization_utils_base.py:2287] 2026-06-10 12:46:54,843 >> loading file tokenizer_config.json
+[INFO|tokenization_utils_base.py:2533] 2026-06-10 12:46:55,004 >> Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+[INFO|2026-06-10 12:46:55] llamafactory.data.template:157 >> Replace eos token: <|im_end|>
+[INFO|2026-06-10 12:46:55] llamafactory.data.loader:157 >> Loading dataset smoke_sft.jsonl...
+[INFO|configuration_utils.py:731] 2026-06-10 12:46:56,413 >> loading configuration file /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct/config.json
+[INFO|configuration_utils.py:800] 2026-06-10 12:46:56,414 >> Model config Qwen2Config {
+  "_name_or_path": "/root/autodl-tmp/models/Qwen2.5-1.5B-Instruct",
+  "architectures": [
+    "Qwen2ForCausalLM"
+  ],
+  "attention_dropout": 0.0,
+  "bos_token_id": 151643,
+  "eos_token_id": 151645,
+  "hidden_act": "silu",
+  "hidden_size": 1536,
+  "initializer_range": 0.02,
+  "intermediate_size": 8960,
+  "max_position_embeddings": 32768,
+  "max_window_layers": 21,
+  "model_type": "qwen2",
+  "num_attention_heads": 12,
+  "num_hidden_layers": 28,
+  "num_key_value_heads": 2,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 1000000.0,
+  "sliding_window": null,
+  "tie_word_embeddings": true,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.43.4",
+  "use_cache": true,
+  "use_sliding_window": false,
+  "vocab_size": 151936
+}
+
+training example:
+input_ids:
+[151644, 8948, 198, 105043, 109897, 100404, 9370, 100168, 105041, 11, 18137, 250, 222, 100470, 104282, 106212, 19403, 99590, 1773, 151645, 198, 151644, 872, 198, 14880, 102104, 107494, 100404, 86119, 8997, 106582, 101088, 101160, 100404, 11319, 151645, 198, 151644, 77091, 198, 101088, 101160, 100404, 104442, 99250, 100404, 17340, 103207, 101937, 105616, 107317, 101160, 13343, 11, 220, 107747, 89012, 45900, 100404, 34230, 9370, 100404, 1773, 116340, 78556, 32463, 23990, 106212, 1773, 151645]
+inputs:
+<|im_start|>system
+你是蚂蚁保险的智能客服, 需严格依据条款作答。<|im_end|>
+<|im_start|>user
+请回答用户的保险问题。
+什么是重大疾病保险？<|im_end|>
+<|im_start|>assistant
+重大疾病保险是指被保险人确诊合同约定的重大疾病时, 保险公司给付保险金的保险。详见相关保单条款。<|im_end|>
+label_ids:
+[-100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, 101088, 101160, 100404, 104442, 99250, 100404, 17340, 103207, 101937, 105616, 107317, 101160, 13343, 11, 220, 107747, 89012, 45900, 100404, 34230, 9370, 100404, 1773, 116340, 78556, 32463, 23990, 106212, 1773, 151645]
+labels:
+重大疾病保险是指被保险人确诊合同约定的重大疾病时, 保险公司给付保险金的保险。详见相关保单条款。<|im_end|>
+[WARNING|2026-06-10 12:46:56] llamafactory.model.model_utils.attention:162 >> FlashAttention-2 is not installed.
+[INFO|modeling_utils.py:3641] 2026-06-10 12:46:56,434 >> loading weights file /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct/model.safetensors
+[INFO|modeling_utils.py:1572] 2026-06-10 12:46:56,443 >> Instantiating Qwen2ForCausalLM model under default dtype torch.bfloat16.
+[INFO|configuration_utils.py:1038] 2026-06-10 12:46:56,444 >> Generate config GenerationConfig {
+  "bos_token_id": 151643,
+  "eos_token_id": 151645,
+  "use_cache": false
+}
+
+[INFO|modeling_utils.py:4473] 2026-06-10 12:46:57,762 >> All model checkpoint weights were used when initializing Qwen2ForCausalLM.
+
+[INFO|modeling_utils.py:4481] 2026-06-10 12:46:57,762 >> All the weights of Qwen2ForCausalLM were initialized from the model checkpoint at /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct.
+If your task is similar to the task the model of the checkpoint was trained on, you can already use Qwen2ForCausalLM for predictions without further training.
+[INFO|configuration_utils.py:991] 2026-06-10 12:46:57,764 >> loading configuration file /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct/generation_config.json
+[INFO|configuration_utils.py:1038] 2026-06-10 12:46:57,764 >> Generate config GenerationConfig {
+  "bos_token_id": 151643,
+  "do_sample": true,
+  "eos_token_id": [
+    151645,
+    151643
+  ],
+  "pad_token_id": 151643,
+  "repetition_penalty": 1.1,
+  "temperature": 0.7,
+  "top_k": 20,
+  "top_p": 0.8
+}
+
+[INFO|2026-06-10 12:46:57] llamafactory.model.model_utils.checkpointing:157 >> Gradient checkpointing enabled.
+[INFO|2026-06-10 12:46:57] llamafactory.model.model_utils.attention:157 >> Using torch SDPA for faster training and inference.
+[INFO|2026-06-10 12:46:57] llamafactory.model.adapter:157 >> Upcasting trainable params to float32.
+[INFO|2026-06-10 12:46:57] llamafactory.model.adapter:157 >> Fine-tuning method: LoRA
+[INFO|2026-06-10 12:46:57] llamafactory.model.loader:157 >> trainable params: 1,089,536 || all params: 1,544,803,840 || trainable%: 0.0705
+[WARNING|trainer.py:598] 2026-06-10 12:46:57,946 >> max_steps is given, it will override any value given in num_train_epochs
+[INFO|trainer.py:648] 2026-06-10 12:46:57,946 >> Using auto half precision backend
+[WARNING|2026-06-10 12:46:57] llamafactory.train.callbacks:168 >> Previous trainer log in this folder will be deleted.
+[INFO|trainer.py:2134] 2026-06-10 12:46:58,189 >> ***** Running training *****
+[INFO|trainer.py:2135] 2026-06-10 12:46:58,189 >>   Num examples = 20
+[INFO|trainer.py:2136] 2026-06-10 12:46:58,189 >>   Num Epochs = 1
+[INFO|trainer.py:2137] 2026-06-10 12:46:58,189 >>   Instantaneous batch size per device = 2
+[INFO|trainer.py:2140] 2026-06-10 12:46:58,189 >>   Total train batch size (w. parallel, distributed & accumulation) = 2
+[INFO|trainer.py:2141] 2026-06-10 12:46:58,189 >>   Gradient Accumulation steps = 1
+[INFO|trainer.py:2142] 2026-06-10 12:46:58,189 >>   Total optimization steps = 5
+[INFO|trainer.py:2143] 2026-06-10 12:46:58,190 >>   Number of trainable parameters = 1,089,536
+  0%|          | 0/5 [00:00<?, ?it/s] 20%|██        | 1/5 [00:00<00:01,  2.07it/s]                                              20%|██        | 1/5 [00:00<00:01,  2.07it/s] 40%|████      | 2/5 [00:00<00:00,  3.63it/s]                                              40%|████      | 2/5 [00:00<00:00,  3.63it/s] 60%|██████    | 3/5 [00:00<00:00,  4.49it/s]                                              60%|██████    | 3/5 [00:00<00:00,  4.49it/s] 80%|████████  | 4/5 [00:00<00:00,  5.33it/s]                                              80%|████████  | 4/5 [00:00<00:00,  5.33it/s]100%|██████████| 5/5 [00:01<00:00,  5.92it/s]                                             100%|██████████| 5/5 [00:01<00:00,  5.92it/s][INFO|trainer.py:3503] 2026-06-10 12:46:59,236 >> Saving model checkpoint to saves/smoke_lora/checkpoint-5
+/root/autodl-tmp/envs/llm/lib/python3.12/site-packages/peft/utils/save_and_load.py:195: UserWarning: Could not find a config file in /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct - will assume that the vocabulary was not modified.
+  warnings.warn(
+[INFO|tokenization_utils_base.py:2702] 2026-06-10 12:46:59,253 >> tokenizer config file saved in saves/smoke_lora/checkpoint-5/tokenizer_config.json
+[INFO|tokenization_utils_base.py:2711] 2026-06-10 12:46:59,254 >> Special tokens file saved in saves/smoke_lora/checkpoint-5/special_tokens_map.json
+[INFO|trainer.py:2394] 2026-06-10 12:46:59,448 >> 
+
+Training completed. Do not forget to share your model on huggingface.co/models =)
+
+
+                                             100%|██████████| 5/5 [00:01<00:00,  5.92it/s]100%|██████████| 5/5 [00:01<00:00,  3.98it/s]
+[INFO|trainer.py:3503] 2026-06-10 12:46:59,449 >> Saving model checkpoint to saves/smoke_lora
+/root/autodl-tmp/envs/llm/lib/python3.12/site-packages/peft/utils/save_and_load.py:195: UserWarning: Could not find a config file in /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct - will assume that the vocabulary was not modified.
+  warnings.warn(
+[INFO|tokenization_utils_base.py:2702] 2026-06-10 12:46:59,460 >> tokenizer config file saved in saves/smoke_lora/tokenizer_config.json
+[INFO|tokenization_utils_base.py:2711] 2026-06-10 12:46:59,460 >> Special tokens file saved in saves/smoke_lora/special_tokens_map.json
+{'loss': 2.3553, 'grad_norm': 1.566034197807312, 'learning_rate': 9.045084971874738e-05, 'epoch': 0.1}
+{'loss': 2.5952, 'grad_norm': 1.7933167219161987, 'learning_rate': 6.545084971874738e-05, 'epoch': 0.2}
+{'loss': 2.1291, 'grad_norm': 1.5731099843978882, 'learning_rate': 3.4549150281252636e-05, 'epoch': 0.3}
+{'loss': 1.8581, 'grad_norm': 1.257258653640747, 'learning_rate': 9.549150281252633e-06, 'epoch': 0.4}
+{'loss': 2.1541, 'grad_norm': 1.853039026260376, 'learning_rate': 0.0, 'epoch': 0.5}
+{'train_runtime': 1.2579, 'train_samples_per_second': 7.95, 'train_steps_per_second': 3.975, 'train_loss': 2.2183353900909424, 'epoch': 0.5}
+***** train metrics *****
+  epoch                    =        0.5
+  total_flos               =     5979GF
+  train_loss               =     2.2183
+  train_runtime            = 0:00:01.25
+  train_samples_per_second =       7.95
+  train_steps_per_second   =      3.975
+Figure saved at: saves/smoke_lora/training_loss.png
+[WARNING|2026-06-10 12:46:59] llamafactory.extras.ploting:162 >> No metric eval_loss to plot.
+[WARNING|2026-06-10 12:46:59] llamafactory.extras.ploting:162 >> No metric eval_accuracy to plot.
+[INFO|modelcard.py:449] 2026-06-10 12:46:59,656 >> Dropping the following result as it does not have all the necessary fields:
+{'task': {'name': 'Causal Language Modeling', 'type': 'text-generation'}}
+[0;32m[12:47:00][0m [smoke-5/5] NCCL 2 卡 all-reduce (64MB, NODE 互联阈值放宽) ...
+W0610 12:47:02.225000 14682 site-packages/torch/distributed/run.py:766] 
+W0610 12:47:02.225000 14682 site-packages/torch/distributed/run.py:766] *****************************************
+W0610 12:47:02.225000 14682 site-packages/torch/distributed/run.py:766] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0610 12:47:02.225000 14682 site-packages/torch/distributed/run.py:766] *****************************************
+NCCL version 2.26.2+cuda12.2
+[nccl-check] world_size=2
+[nccl-check] CUDA device 0: NVIDIA GeForce RTX 5090
+[nccl-check] CUDA device 1: NVIDIA GeForce RTX 5090
+[nccl-check] NCCL env: P2P=SYS, IB_DISABLE=1, TIMEOUT=60s
+[nccl-check] barrier passed
+[nccl-check] all-reduce 失败 (但是 barrier passed), 不阻塞 M01 smoke
+[nccl-check] 原因: RTX 5090 sm_120 + NCCL 2.26.2 GPU kernel 已知问题
+[nccl-check] 推到 M02 阶段: 升级 NCCL 2.27+ / 测试 NVLS 直连
+terminate called after throwing an instance of 'c10::Error'
+terminate called after throwing an instance of 'c10::Error'
+[rank0]:[E610 12:47:05.047647142 ProcessGroupNCCL.cpp:1899] [PG ID 0 PG GUID 0(default_pg) Rank 0] Process group watchdog thread terminated with exception: CUDA error: an illegal memory access was encountered
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Exception raised from c10_cuda_check_implementation at /pytorch/c10/cuda/CUDAException.cpp:43 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x98 (0x7f786c8005e8 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) + 0xe0 (0x7f786c7954a2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #2: c10::cuda::c10_cuda_check_implementation(int, char const*, char const*, int, bool) + 0x3c2 (0x7f78d7971422 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libc10_cuda.so)
+frame #3: c10d::ProcessGroupNCCL::WorkNCCL::finishedGPUExecutionInternal() const + 0x56 (0x7f786d56d5a6 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: c10d::ProcessGroupNCCL::WorkNCCL::isCompleted() + 0x70 (0x7f786d57d840 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #5: c10d::ProcessGroupNCCL::watchdogHandler() + 0x782 (0x7f786d57f3d2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #6: c10d::ProcessGroupNCCL::ncclCommWatchdog() + 0x14d (0x7f786d580fdd in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #7: <unknown function> + 0xdf0e6 (0x7f785d7ed0e6 in /root/autodl-tmp/envs/llm/bin/../lib/libstdc++.so.6)
+frame #8: <unknown function> + 0x94ac3 (0x7f78d85e1ac3 in /usr/lib/x86_64-linux-gnu/libc.so.6)
+frame #9: clone + 0x44 (0x7f78d8672a04 in /usr/lib/x86_64-linux-gnu/libc.so.6)
+
+[rank1]:[E610 12:47:05.047726358 ProcessGroupNCCL.cpp:1899] [PG ID 0 PG GUID 0(default_pg) Rank 1] Process group watchdog thread terminated with exception: CUDA error: an illegal memory access was encountered
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Exception raised from c10_cuda_check_implementation at /pytorch/c10/cuda/CUDAException.cpp:43 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x98 (0x7faff26005e8 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) + 0xe0 (0x7faff25954a2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #2: c10::cuda::c10_cuda_check_implementation(int, char const*, char const*, int, bool) + 0x3c2 (0x7fb05d7a5422 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libc10_cuda.so)
+frame #3: c10d::ProcessGroupNCCL::WorkNCCL::finishedGPUExecutionInternal() const + 0x56 (0x7faff336d5a6 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: c10d::ProcessGroupNCCL::WorkNCCL::isCompleted() + 0x70 (0x7faff337d840 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #5: c10d::ProcessGroupNCCL::watchdogHandler() + 0x782 (0x7faff337f3d2 in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #6: c10d::ProcessGroupNCCL::ncclCommWatchdog() + 0x14d (0x7faff3380fdd in /root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #7: <unknown function> + 0xdf0e6 (0x7fafe35ed0e6 in /root/autodl-tmp/envs/llm/bin/../lib/libstdc++.so.6)
+frame #8: <unknown function> + 0x94ac3 (0x7fb05e42dac3 in /usr/lib/x86_64-linux-gnu/libc.so.6)
+frame #9: clone + 0x44 (0x7fb05e4bea04 in /usr/lib/x86_64-linux-gnu/libc.so.6)
+
+terminate called recursively
+terminate called recursively
+W0610 12:47:05.342000 14682 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 14749 closing signal SIGTERM
+E0610 12:47:05.457000 14682 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: -6) local_rank: 0 (pid: 14748) of binary: /root/autodl-tmp/envs/llm/bin/python3.12
+Traceback (most recent call last):
+  File "/root/autodl-tmp/envs/llm/bin/torchrun", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/distributed/run.py", line 892, in main
+    run(args)
+  File "/root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/distributed/run.py", line 883, in run
+    elastic_launch(
+  File "/root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 139, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/envs/llm/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 270, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+======================================================
+scripts/check_nccl.py FAILED
+------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-06-10_12:47:05
+  host      : localhost
+  rank      : 0 (local_rank: 0)
+  exitcode  : -6 (pid: 14748)
+  error_file: <N/A>
+  traceback : Signal 6 (SIGABRT) received by PID 14748
+======================================================
+[0;32m[12:47:05][0m [nccl-check] PASS (barrier passed in log, all-reduce WARN 已知 sm_120 问题, 推 M02)
+[0;32m[12:47:05][0m 
+[0;32m[12:47:05][0m ===== M01 烟雾测试结束 20260610_124543 =====
+[0;32m[12:47:05][0m 主日志: /root/autodl-tmp/ant-group-dpo/logs/m01_smoke_20260610_124543.log
+[0;32m[12:47:05][0m 子日志: /root/autodl-tmp/ant-group-dpo/logs/m01_smoke_*_20260610_124543.log
+[0;32m[12:47:05][0m 
+[0;32m[12:47:05][0m ==== 烟雾测试结果汇总 ====
+[0;32m[12:47:05][0m   [OK]   eval
+[0;31m[FAIL][0m   [FAIL] vllm
+[0;31m[FAIL][0m   [FAIL] xinfer
+[0;32m[12:47:05][0m   [OK]   sft
+[0;32m[12:47:05][0m   [OK]   nccl
+[0;32m[12:47:05][0m 通过: 3/5, 失败: 2/5
+[0;32m[12:47:05][0m 
+[0;32m[12:47:05][0m ==== M01 阶段交付物对齐 (D-M01-01 ~ D-M01-10) ====
+[0;32m[12:47:05][0m   D-M01-01/02/03/04 Docker 镜像: 暂缓, 服务器无 docker
+[0;32m[12:47:05][0m   D-M01-05 docker-compose:         暂缓, 同上
+[0;32m[12:47:05][0m   D-M01-06 SFT yaml:               configs/smoke_lora_qwen2_5_1_5b.yaml  OK
+[0;32m[12:47:05][0m   D-M01-07 烟雾测试脚本:           scripts/{smoke_vllm.py,smoke_xinfer.sh,smoke_eval.py}  OK
+[0;32m[12:47:05][0m   D-M01-08 NCCL 检查:              scripts/check_nccl.py  OK
+[0;32m[12:47:05][0m   D-M01-09 部署 README:            deploy/README.md  OK
+[0;32m[12:47:05][0m   D-M01-10 依赖清单:               requirements.txt / pyproject.toml  OK
+[0;32m[12:47:05][0m 
+[0;32m[12:47:05][0m ==== 硬件调整记录 ====
+[0;32m[12:47:05][0m   计划 2×A100-80G + NVLink  ->  实际 2×RTX 5090 + NODE 互联
+[0;32m[12:47:05][0m   PyTorch 2.4+cu124          ->  PyTorch 2.7.1+cu128 (cu130 wheel 起步 2.9.0)
+[0;32m[12:47:05][0m   Docker + compose           ->  conda env llm (Python 3.12)
+[0;32m[12:47:05][0m   NCCL 256MB < 100ms         ->  阈值放宽 (NODE 互联, 性能约 200-300ms)
+[0;31m[FAIL][0m M01 烟雾测试存在失败项 (2/5)

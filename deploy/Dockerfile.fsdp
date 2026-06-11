@@ -1,0 +1,22 @@
+# FSDP 后端 layer - M01 阶段交付物 D-M01-02
+# copaw-dpo-fsdp:latest
+
+FROM copaw-dpo-base:latest
+
+LABEL maintainer="ant-group-dpo-team" \
+      version="1.0" \
+      description="PyTorch FSDP 分布式训练后端 layer"
+
+# 安装 FSDP 相关依赖 + NVTX
+# FSDP 来自 PyTorch 2.4, 此处仅补全 nvtx 等
+RUN pip install --no-cache-dir \
+        nvtx==0.2.10 \
+        torchdistill==0.3.7
+
+# 验证
+RUN python -c "from torch.distributed.fsdp import fully_shard; print('fully_shard OK')" \
+    && python -c "from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy; print('wrap policy OK')" \
+    && python -c "import torch; assert torch.__version__ >= '2.4', 'need PyTorch >= 2.4'; print(f'PyTorch {torch.__version__} OK')"
+
+WORKDIR /workspace
+CMD ["/bin/bash"]

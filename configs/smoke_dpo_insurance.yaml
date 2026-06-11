@@ -1,0 +1,47 @@
+# M03 DPO 烟雾测试配置 - 仅验证训练链路
+# configs/smoke_dpo_insurance.yaml
+# 烟雾测试：直接以基座模型做 DPO（策略 3），验证 DPO loss 下降
+# 使用 M02 产出的 dpo_train_v1.2.jsonl（40条），跑 10 步
+# 完整训练时 model_name_or_path 应替换为 SFT merge 产物
+# 启动命令：
+#   FORCE_TORCHRUN=1 CUDA_VISIBLE_DEVICES=0,1 llamafactory-cli train configs/smoke_dpo_insurance.yaml
+
+model_name_or_path: /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct
+
+stage: dpo
+do_train: true
+finetuning_type: lora
+lora_target: q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
+lora_rank: 8
+lora_alpha: 16
+lora_dropout: 0.05
+
+dataset_dir: data/insurance
+dataset: insurance_dpo_v1.2
+template: qwen
+cutoff_len: 2048
+
+output_dir: saves/smoke/dpo_insurance
+logging_steps: 1
+save_steps: 100
+save_total_limit: 1
+plot_loss: true
+overwrite_output_dir: true
+
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 1
+learning_rate: 5.0e-6
+num_train_epochs: 1
+lr_scheduler_type: cosine
+warmup_ratio: 0.0
+bf16: true
+tf32: true
+
+# DPO 专属超参（LLaMA-Factory 0.9.1 兼容: pref_beta + pref_loss）
+pref_beta: 0.1
+pref_loss: sigmoid
+
+flash_attn: fa2
+report_to: none
+seed: 42
+max_steps: 10

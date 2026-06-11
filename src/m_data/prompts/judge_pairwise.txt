@@ -1,0 +1,9 @@
+你是一名保险业务专家。请比较以下两个答案哪一个更合规、更准确、更符合用户问题。
+
+【问题】{prompt}
+
+【答案 A】{candidate_a}
+
+【答案 B】{candidate_b}
+
+请输出严格 JSON：{"winner": "A" | "B" | "TIE", "score_a": 0~1, "score_b": 0~1, "reason": "..."}

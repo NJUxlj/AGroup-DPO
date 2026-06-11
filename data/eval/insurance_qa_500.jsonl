@@ -1,0 +1,10 @@
+{"id": "ins_qa_0001", "category": "liability", "question": "保险公司对被保险人的告知义务有什么要求？", "reference_answer": "投保人应如实告知与保险标的有关的重要事实，故意或重大过失未告知的，保险人有权解除合同。", "answer_type": "open", "judge_required": false}
+{"id": "ins_qa_0002", "category": "indemnity", "question": "保险赔偿的计算原则是什么？", "reference_answer": "保险赔偿遵循损失补偿原则，赔偿金额不得超过实际损失金额，防止被保险人因保险而获利。", "answer_type": "open", "judge_required": false}
+{"id": "ins_qa_0003", "category": "termination", "question": "哪些情况下保险合同会终止？", "reference_answer": "保险合同终止的情况包括：保险期间届满、保险人履行赔偿义务、投保人解除合同、保险标的灭失等。", "answer_type": "open", "judge_required": false}
+{"id": "ins_qa_0004", "category": "choice", "question": "以下哪个不是保险的基本原则？A. 最大诚信原则 B. 损失补偿原则 C. 投机获利原则 D. 近因原则", "reference_answer": "C", "answer_type": "choice", "judge_required": false}
+{"id": "ins_qa_0005", "category": "renewal", "question": "保险续保时保费是否会变化？", "reference_answer": "保险续保时保费可能变化，受年龄增长、理赔记录、医疗通胀等因素影响。", "answer_type": "open", "judge_required": false}
+{"id": "ins_qa_0006", "category": "exclusion", "question": "健康保险通常不保哪些内容？", "reference_answer": "健康保险通常不保既往症、美容整形、牙科治疗（除非附加）、生育相关费用、故意自伤等。", "answer_type": "open", "judge_required": false}
+{"id": "ins_qa_0007", "category": "surrender", "question": "退保可以获得多少金额？", "reference_answer": "退保可获得的金额为保单现金价值减去退保手续费，具体金额取决于保单年限和合同约定。", "answer_type": "open", "judge_required": false}
+{"id": "ins_qa_0008", "category": "choice", "question": "投保人年龄误报的处理方式是？A. 直接拒赔 B. 调整保费或保额 C. 解除合同 D. 无影响", "reference_answer": "B", "answer_type": "choice", "judge_required": false}
+{"id": "ins_qa_0009", "category": "nomination", "question": "没有指定受益人时保险金如何处理？", "reference_answer": "没有指定受益人时，保险金作为被保险人遗产，按继承法规定分配。", "answer_type": "open", "judge_required": false}
+{"id": "ins_qa_0010", "category": "lapse", "question": "保险失效后能否复效？", "reference_answer": "保险失效后通常可在一定期限内（通常2年）申请复效，需补缴欠缴保费并重新通过健康核保。", "answer_type": "open", "judge_required": false}

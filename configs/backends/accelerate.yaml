@@ -1,0 +1,9 @@
+# HuggingFace accelerate 后端配置模板 (M04)
+# 使用方式：在训练配置中设置 trainer.distributed_backend: accelerate
+
+trainer:
+  distributed_backend: accelerate
+  per_device_batch_size: 2
+  gradient_accumulation_steps: 8
+  learning_rate: 1.0e-4
+  bf16: true

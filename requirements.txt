@@ -1,0 +1,58 @@
+# 环境依赖清单 (M01 阶段交付物 D-M01-10)
+# 与 deploy/run_m01_smoke.sh 实际安装版本严格对齐
+# 硬件实际: 2×RTX 5090 + Driver 580.76.05 + CUDA 13.0
+
+# 深度学习框架 (PyTorch 2.7.1+cu128 - 2.7.0+cu130 不存在, cu130 wheel 从 2.9.0 起步)
+torch==2.7.1
+torchvision==0.22.1
+torchaudio==2.7.1
+
+# 训练流水线 (accelerate 必须 >=0.34.0 满足 llamafactory 0.9.1)
+transformers==4.43.4
+accelerate>=0.34.0,<=1.0.1
+datasets==2.20.0
+sentencepiece==0.2.0
+tokenizers==0.19.1
+protobuf>=3.19.6,<5.0.0,!=4.24.0
+peft==0.11.1
+trl==0.9.6
+bitsandbytes==0.45.5
+# 升级原因: 0.43.3 + triton 3.3.1 不兼容 (ModuleNotFoundError: No module named 'triton.ops')
+#           0.43.3 无 cu128 GPU binary (RTX 5090 完全无法用)
+#           0.45.5 含 cu128 wheel + 兼容 triton 3.x API + peft 0.11.1 兼容
+llamafactory==0.9.1
+
+# 分布式后端 (4 类)
+deepspeed==0.14.4
+nvtx==0.2.10
+# fsdp / megatron 走 PyTorch 2.7 + NVIDIA apex 内置, 不需额外包
+# accelerate 在 transformers 同 pip 包中已含
+
+# 推理 (vllm 0.5.4 强依赖 torch==2.4.0 会覆盖 torch 2.7.1, 改用 0.8.5+)
+vllm>=0.8.5,<0.9.0
+xinference>=0.15.4
+openai==1.35.0
+
+# 评测
+sacrebleu==2.4.2
+rouge-score==0.1.2
+nltk==3.8.1
+jiwer==3.0.3
+bert-score==0.3.13
+matplotlib==3.9.0
+
+# 通用工具
+numpy==1.26.4
+scipy==1.13.1
+pandas==2.2.2
+pyyaml==6.0.1
+tqdm==4.66.4
+tensorboard==2.17.0
+wandb==0.17.4
+omegaconf==2.3.0
+hydra-core==1.3.2
+loguru==0.7.2
+pydantic==2.8.2
+httpx==0.27.0
+uvicorn==0.30.1
+fastapi==0.111.0

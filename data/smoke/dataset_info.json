@@ -1,0 +1,11 @@
+{
+  "smoke_sft": {
+    "file_name": "smoke_sft.jsonl",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  }
+}

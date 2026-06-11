@@ -1,0 +1,17 @@
+# M-INFER: 推理加速配置
+# 通过 infer.backend 字段在 vllm / xinference 间切换
+
+infer:
+  backend: vllm          # vllm | xinference
+  model_path: merged_models/qwen2_5_1_5b_insurance_dpo_v1.2
+
+  vllm:
+    tensor_parallel_size: 1
+    gpu_memory_utilization: 0.85
+    max_model_len: 2048
+    dtype: bfloat16
+    enforce_eager: false  # true = 禁用 CUDA graph（调试用）
+
+  xinference:
+    server_endpoint: http://127.0.0.1:9997
+    model_uid: null  # 若已有注册模型，可直接指定 uid 跳过注册

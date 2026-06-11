@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ant-group-dpo"
+version = "0.1.0"
+description = "蚂蚁集团保险业务 DPO 训练 / 推理 / 评测一体化项目"
+readme = "README.md"
+# 服务器 conda env llm 实际是 Python 3.12, 但本仓库保留 3.10 兼容声明
+# 实际部署在 conda env llm (Python 3.12) 中, 依赖约束见 requirements.txt
+requires-python = ">=3.10,<3.13"
+license = { text = "Proprietary" }
+authors = [{ name = "Ant Group DPO Team" }]
+
+# 核心训练依赖 (与 requirements.txt 实际安装版本严格对齐)
+# PyTorch 2.7.1+cu128 (cu130 wheel 从 2.9.0 起步, 2.7.0+cu130 不存在)
+# accelerate >=0.34.0 满足 llamafactory 0.9.1 要求
+# protobuf <5.0.0 满足 tensorboard 2.17.0 要求
+dependencies = [
+    "torch==2.7.1",
+    "torchvision==0.22.1",
+    "torchaudio==2.7.1",
+    "transformers==4.43.4",
+    "accelerate>=0.34.0,<=1.0.1",
+    "datasets==2.20.0",
+    "sentencepiece==0.2.0",
+    "tokenizers==0.19.1",
+    "protobuf>=3.19.6,<5.0.0,!=4.24.0",
+    "peft==0.11.1",
+    "trl==0.9.6",
+    "bitsandbytes==0.45.5",
+    "llamafactory==0.9.1",
+    "deepspeed==0.14.4",
+    "nvtx==0.2.10",
+]
+
+# 推理依赖 (可选) - vllm 0.5.4 强依赖 torch==2.4.0, 必须 >=0.8.5
+inference = [
+    "vllm>=0.8.5,<0.9.0",
+    "xinference>=0.15.4",
+    "openai==1.35.0",
+]
+
+# 评测依赖 (可选)
+evaluation = [
+    "sacrebleu==2.4.2",
+    "rouge-score==0.1.2",
+    "nltk==3.8.1",
+    "jiwer==3.0.3",
+    "bert-score==0.3.13",
+]
+
+[project.optional-dependencies]
+all = [
+    "ant-group-dpo[inference,evaluation]",
+]
+
+# 项目脚本入口
+[project.scripts]
+copaw-dpo = "ant_group_dpo.cli:main"
+
+# 包发现
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ant_group_dpo*"]
+
+# pytest 配置
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra -q --tb=short"
+
+# 代码风格
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["ant_group_dpo"]
