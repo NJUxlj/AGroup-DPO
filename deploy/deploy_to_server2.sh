@@ -4,11 +4,11 @@
 
 set -euo pipefail
 
-LOCAL_ROOT=/Users/xiniuyiliao/Desktop/application_code/Ant-Group-DPO
+LOCAL_ROOT=/Users/xiniuyiliao/Desktop/application_code/AGroup-DPO
 REMOTE_HOST="root@connect.bjb2.seetacloud.com"
 REMOTE_PORT=16531
 REMOTE_PASS='9EyLfeGrqOxs'
-REMOTE_ROOT=/root/autodl-tmp/ant-group-dpo
+REMOTE_ROOT=/root/autodl-tmp/agroup-dpo
 SCREEN_NAME=m01_smoke
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'

@@ -172,7 +172,7 @@ TICKET_SCENARIOS = [
 
 def build_faq_prompt(category: str, topic: str, count: int) -> str:
     """构造 FAQ 生成 prompt。"""
-    return f"""你是蚂蚁保险的资深客服专家。请为「{category}」类别生成 {count} 个真实的保险客户常见问题及答案。
+    return f"""你是AI财保助理的资深客服专家。请为「{category}」类别生成 {count} 个真实的保险客户常见问题及答案。
 
 话题约束：{topic}
 
@@ -189,7 +189,7 @@ def build_faq_prompt(category: str, topic: str, count: int) -> str:
 
 def build_ticket_prompt(topic: str, count: int) -> str:
     """构造工单生成 prompt。"""
-    return f"""你是蚂蚁保险的客服坐席。请生成 {count} 个真实的历史工单对话，场景为：
+    return f"""你是AI财保助理的客服坐席。请生成 {count} 个真实的历史工单对话，场景为：
 
 话题：{topic}
 

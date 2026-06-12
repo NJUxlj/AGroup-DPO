@@ -35,7 +35,7 @@ m_data/
 ### 2.1 本地干跑（不写文件）
 
 ```bash
-cd /root/autodl-tmp/ant-group-dpo
+cd /root/autodl-tmp/agroup-dpo
 PYTHONPATH=src python -m m_data.cli \
     --config configs/data/insurance_dpo_gen.yaml \
     --dry-run --verbose
@@ -104,7 +104,7 @@ PYTHONPATH=src python -m m_data.cli \
   "instruction": "请回答用户的保险问题。",
   "input": "重疾险等待期内确诊是否赔付？",
   "output": "等待期内确诊一般不予赔付...",
-  "system": "你是蚂蚁保险的智能客服，需严格依据条款作答。",
+  "system": "你是AI财保助理，需严格依据条款作答。"
   "source": "sft_s-a",
   "version": "sft_v1"
 }
@@ -140,7 +140,7 @@ PYTHONPATH=src python -m m_data.cli \
 ## 7. 测试
 
 ```bash
-cd /root/autodl-tmp/ant-group-dpo
+cd /root/autodl-tmp/agroup-dpo
 PYTHONPATH=src python -m pytest tests/m_data/ -v
 ```
 

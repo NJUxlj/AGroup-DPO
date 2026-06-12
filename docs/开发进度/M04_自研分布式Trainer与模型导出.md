@@ -90,7 +90,7 @@ configs/backends/
 
 执行命令：
 ```bash
-cd ~/Ant-Group-DPO && PYTHONPATH=src:$PYTHONPATH python scripts/smoke_m04.py
+cd ~/AGroup-DPO && PYTHONPATH=src:$PYTHONPATH python scripts/smoke_m04.py
 ```
 
 ### 环境信息

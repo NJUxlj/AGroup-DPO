@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # M01 部署脚本 (conda 路径) - 在 server2 远端 conda env llm 中跑
-# 项目代码: /root/autodl-tmp/ant-group-dpo
+# 项目代码: /root/autodl-tmp/agroup-dpo
 # conda env: llm (Python 3.12 + PyTorch 2.7.1 +cu128)
 # 适配: 2×RTX 5090 (32GB) / Driver 580.76.05 / CUDA 13.0 / NODE 互联
 #
@@ -16,7 +16,7 @@ warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 err()  { echo -e "${RED}[FAIL]${NC} $*"; }
 die()  { err "$*"; exit 1; }
 
-PROJECT_ROOT=/root/autodl-tmp/ant-group-dpo
+PROJECT_ROOT=/root/autodl-tmp/agroup-dpo
 CONDA_ENV=llm
 LOG_DIR=${PROJECT_ROOT}/logs
 mkdir -p "${LOG_DIR}"

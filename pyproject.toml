@@ -3,15 +3,15 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ant-group-dpo"
+name = "agroup-dpo"
 version = "0.1.0"
-description = "蚂蚁集团保险业务 DPO 训练 / 推理 / 评测一体化项目"
+description = "保险业务 DPO 训练 / 推理 / 评测一体化项目"
 readme = "README.md"
 # 服务器 conda env llm 实际是 Python 3.12, 但本仓库保留 3.10 兼容声明
 # 实际部署在 conda env llm (Python 3.12) 中, 依赖约束见 requirements.txt
 requires-python = ">=3.10,<3.13"
 license = { text = "Proprietary" }
-authors = [{ name = "Ant Group DPO Team" }]
+authors = [{ name = "AGroup DPO Team" }]
 
 # 核心训练依赖 (与 requirements.txt 实际安装版本严格对齐)
 # PyTorch 2.7.1+cu128 (cu130 wheel 从 2.9.0 起步, 2.7.0+cu130 不存在)
@@ -53,17 +53,17 @@ evaluation = [
 
 [project.optional-dependencies]
 all = [
-    "ant-group-dpo[inference,evaluation]",
+    "agroup-dpo[inference,evaluation]",
 ]
 
 # 项目脚本入口
 [project.scripts]
-copaw-dpo = "ant_group_dpo.cli:main"
+copaw-dpo = "agroup_dpo.cli:main"
 
 # 包发现
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["ant_group_dpo*"]
+include = ["agroup_dpo*"]
 
 # pytest 配置
 [tool.pytest.ini_options]
@@ -79,4 +79,4 @@ target-version = ["py310"]
 [tool.isort]
 profile = "black"
 line_length = 100
-known_first_party = ["ant_group_dpo"]
+known_first_party = ["agroup_dpo"]

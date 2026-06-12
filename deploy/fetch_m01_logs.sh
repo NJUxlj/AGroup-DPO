@@ -7,8 +7,8 @@ set -euo pipefail
 REMOTE_HOST="root@connect.bjb2.seetacloud.com"
 REMOTE_PORT=16531
 REMOTE_PASS='9EyLfeGrqOxs'
-REMOTE_ROOT=/root/autodl-tmp/ant-group-dpo
-LOCAL_ROOT=/Users/xiniuyiliao/Desktop/application_code/Ant-Group-DPO
+REMOTE_ROOT=/root/autodl-tmp/agroup-dpo
+LOCAL_ROOT=/Users/xiniuyiliao/Desktop/application_code/AGroup-DPO
 
 GREEN='\033[0;32m'
 log() { echo -e "${GREEN}[$(date +%H:%M:%S)]${NC} $*"; }

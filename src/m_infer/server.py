@@ -64,7 +64,7 @@ def create_app(
     backend = build_infer_backend(backend_name, model_path, **backend_kwargs)
 
     app = FastAPI(
-        title="Ant-Group-DPO Insurance QA",
+        title="AGroup-DPO Insurance QA",
         description="保险问答推理服务 —— 与司内 RAG 端对接",
         version="1.0.0",
         lifespan=lifespan,
@@ -102,7 +102,7 @@ def create_app(
 # ---- CLI 入口 ----
 
 def main():
-    parser = argparse.ArgumentParser(description="Ant-Group-DPO Insurance QA Server")
+    parser = argparse.ArgumentParser(description="AGroup-DPO Insurance QA Server")
     parser.add_argument("--backend", default="vllm", choices=["vllm", "xinference"],
                         help="推理后端（默认 vllm）")
     parser.add_argument("--model-path", required=True,

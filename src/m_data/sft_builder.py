@@ -12,7 +12,7 @@ from typing import Any, Iterator
 logger = logging.getLogger(__name__)
 
 # 系统提示词（固定）
-_SYSTEM_PROMPT = "你是蚂蚁保险的智能客服，需严格依据条款作答。"
+_SYSTEM_PROMPT = "你是AI财保助理，需严格依据条款作答。"
 
 # 指令前缀
 _INSTRUCTION_PREFIX = "请回答用户的保险问题。"

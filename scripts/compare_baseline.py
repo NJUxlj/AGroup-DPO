@@ -46,7 +46,7 @@ BASELINE_MODEL = os.environ.get(
 )
 DPO_MODEL_PATH = os.environ.get(
     "DPO_MODEL_PATH",
-    "/root/autodl-tmp/ant-group-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2",
+    "/root/autodl-tmp/agroup-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2",
 )
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "reports")
 

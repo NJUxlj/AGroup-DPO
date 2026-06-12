@@ -1,6 +1,6 @@
 # 部署与运行环境说明 (M01 阶段交付物 D-M01-09)
 
-> 蚂蚁集团保险 DPO 项目 · 基础设施与环境准备阶段 (M01)
+> AGroup 保险 DPO 项目 · 基础设施与环境准备阶段 (M01)
 > 关联文档: [项目分阶段方案/M01_基础设施与环境准备.md](../docs/项目分阶段方案/M01_基础设施与环境准备.md)
 
 ---
@@ -180,12 +180,12 @@ docker run --gpus all --rm -it \
 rsync -avz --delete \
     -e "ssh -p 16531" \
     --exclude='saves/' --exclude='.git/' --exclude='__pycache__/' \
-    /Users/xiniuyiliao/Desktop/application_code/Ant-Group-DPO/ \
-    root@connect.bjb2.seetacloud.com:/workspace/ant-group-dpo/
+    /Users/xiniuyiliao/Desktop/application_code/AGroup-DPO/ \
+    root@connect.bjb2.seetacloud.com:/workspace/agroup-dpo/
 
 # 远端: 进入工作目录, 执行上面的烟雾测试
 ssh -p 16531 root@connect.bjb2.seetacloud.com
-cd /workspace/ant-group-dpo
+cd /workspace/agroup-dpo
 bash deploy/run_m01_smoke.sh   # 一键跑 5 项
 ```
 

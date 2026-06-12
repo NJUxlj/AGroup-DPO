@@ -33,7 +33,7 @@ MODEL_PATH = os.environ.get(
 )
 DPO_MODEL_PATH_HINT = os.environ.get(
     "DPO_MODEL_PATH_HINT",
-    "/root/autodl-tmp/ant-group-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2",
+    "/root/autodl-tmp/agroup-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2",
 )
 SERVER_HOST = os.environ.get("SERVER_HOST", "127.0.0.1")
 SERVER_PORT = int(os.environ.get("SERVER_PORT", "8080"))

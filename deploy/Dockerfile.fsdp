@@ -3,7 +3,7 @@
 
 FROM copaw-dpo-base:latest
 
-LABEL maintainer="ant-group-dpo-team" \
+LABEL maintainer="agroup-dpo-team" \
       version="1.0" \
       description="PyTorch FSDP 分布式训练后端 layer"
 

@@ -176,11 +176,11 @@ CUDA_VISIBLE_DEVICES=0 llamafactory-cli train configs/train_dpo_qwen2_5_1_5b_ins
 服务器：server2 (connect.bjb2.seetacloud.com:16531)
 GPU：    2×NVIDIA GeForce RTX 5090 (32GB)
 模型：   /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct
-代码：   /root/autodl-tmp/ant-group-dpo
-数据：   /root/autodl-tmp/ant-group-dpo/data/insurance/
-SFT:     /root/autodl-tmp/ant-group-dpo/saves/qwen2_5_1_5b/insurance_sft_v1/
-DPO:     /root/autodl-tmp/ant-group-dpo/saves/qwen2_5_1_5b/insurance_dpo_v1.2/
-Merge:   /root/autodl-tmp/ant-group-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2/
+代码：   /root/autodl-tmp/agroup-dpo
+数据：   /root/autodl-tmp/agroup-dpo/data/insurance/
+SFT:     /root/autodl-tmp/agroup-dpo/saves/qwen2_5_1_5b/insurance_sft_v1/
+DPO:     /root/autodl-tmp/agroup-dpo/saves/qwen2_5_1_5b/insurance_dpo_v1.2/
+Merge:   /root/autodl-tmp/agroup-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2/
 ```
 
 ---

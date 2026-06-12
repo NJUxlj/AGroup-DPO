@@ -3,7 +3,7 @@
 
 FROM copaw-dpo-base:latest
 
-LABEL maintainer="ant-group-dpo-team" \
+LABEL maintainer="agroup-dpo-team" \
       version="1.0" \
       description="HuggingFace accelerate 后端 layer (单机多卡调试用)"
 
