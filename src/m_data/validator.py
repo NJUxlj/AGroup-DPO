@@ -6,20 +6,15 @@ M02 § 3.4: 6 类质量校验规则，确保产出数据集质量。
 import re
 from typing import Any
 
-
-# 涉及赔付/等待期/免赔/告知等关键词时 chosen 必须包含的条款引用词
+from m_data.pii_patterns import PII_PATTERNS
 REQUIRED_TERMS_FOR_CLAIMS = ["条款", "保单", "合同", "法"]
 
 # 触发条款引用的业务关键词
 CLAIM_KEYWORDS = ["赔付", "等待期", "免赔", "告知", "理赔", "投保", "退保", "续保", "除外"]
 
-# PII 模式（仅扫描，脱敏在 PIIScrubber 中完成）
-_PII_SCAN_PATTERNS = [
-    re.compile(r"(?<!\d)\d{16,17}(?!\d)|(?<!\d)\d{19}(?!\d)"),  # 银行卡（skip 18 = id_card）
-    re.compile(r"\d{17}[\dXx]"),  # 身份证
-    re.compile(r"1[3-9]\d{9}"),  # 手机号
-    re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),  # 邮箱
-]
+# PII 扫描模式（仅扫描，脱敏在 PIIScrubber 中完成）
+# 从共享模块 PII_PATTERNS 中提取纯正则模式
+_PII_SCAN_PATTERNS: list[re.Pattern] = [pat for _, pat, _ in PII_PATTERNS]
 
 
 class Validator:

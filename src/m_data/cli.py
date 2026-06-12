@@ -1,9 +1,9 @@
 """M02 数据流水线 CLI 入口。
 
 使用方式：
-    python -m m_data.cli --config configs/data/insurance_dpo_gen.yaml
-    python -m m_data.cli --config configs/data/insurance_dpo_gen.yaml --dry-run
-    python -m m_data.cli --config configs/data/insurance_dpo_gen.yaml --since 2026-06-01
+    PYTHONPATH=src python -m m_data.cli --config configs/data/insurance_dpo_gen.yaml
+    PYTHONPATH=src python -m m_data.cli --config configs/data/insurance_dpo_gen.yaml --dry-run
+    PYTHONPATH=src python -m m_data.cli --config configs/data/insurance_dpo_gen.yaml --since 2026-06-01
 """
 
 import argparse
@@ -52,8 +52,12 @@ def load_config(path: str) -> dict:
     if not config_path.exists():
         print(f"Error: config file not found: {path}", file=sys.stderr)
         sys.exit(1)
-    with open(config_path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            return yaml.safe_load(f)
+    except yaml.YAMLError as e:
+        print(f"Error: failed to parse YAML config: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def main() -> None:
@@ -70,7 +74,15 @@ def main() -> None:
 
     since = None
     if args.since:
-        since = datetime.strptime(args.since, "%Y-%m-%d")
+        try:
+            since = datetime.strptime(args.since, "%Y-%m-%d")
+        except ValueError:
+            print(
+                f"Error: invalid --since date '{args.since}'. "
+                f"Expected format: YYYY-MM-DD",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         logger.info("Incremental mode: since=%s", since.isoformat())
 
     pipeline = Pipeline(config)

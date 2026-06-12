@@ -12,11 +12,16 @@ import hashlib
 import json
 import logging
 import random
+from pathlib import Path
 from typing import Any, Iterator, Optional
 
 from m_data.templates import HARD_NEGATIVE_TEMPLATES
 
 logger = logging.getLogger(__name__)
+
+# 加载 LLM-as-Judge 提示词模板
+_JUDGE_TEMPLATE_PATH = Path(__file__).parent / "prompts" / "judge_pairwise.txt"
+_JUDGE_TEMPLATE = _JUDGE_TEMPLATE_PATH.read_text(encoding="utf-8").strip()
 
 
 class PairBuilder:
@@ -145,8 +150,8 @@ class PairBuilder:
 
             winner, score_chosen, score_rejected = self._call_judge(
                 prompt=question,
-                answer_a=expert_answer,
-                answer_b=rag_answer,
+                candidate_a=expert_answer,
+                candidate_b=rag_answer,
             )
 
             if winner == "A":
@@ -172,19 +177,15 @@ class PairBuilder:
                 yield sample
 
     def _call_judge(
-        self, prompt: str, answer_a: str, answer_b: str
+        self, prompt: str, candidate_a: str, candidate_b: str
     ) -> tuple[str, float, float]:
         """调用 Judge 模型获取 pairwise preference。
 
         Returns:
             (winner, score_a, score_b) 其中 winner ∈ {"A", "B", "TIE"}。
         """
-        judge_prompt = (
-            f"你是一名保险业务专家。请比较以下两个答案哪一个更合规、更准确、更符合用户问题。\n\n"
-            f"【问题】{prompt}\n\n"
-            f"【答案 A】{answer_a}\n\n"
-            f"【答案 B】{answer_b}\n\n"
-            f'请输出严格 JSON：{{"winner": "A" | "B" | "TIE", "score_a": 0~1, "score_b": 0~1, "reason": "..."}}'
+        judge_prompt = _JUDGE_TEMPLATE.format(
+            prompt=prompt, candidate_a=candidate_a, candidate_b=candidate_b
         )
 
         try:

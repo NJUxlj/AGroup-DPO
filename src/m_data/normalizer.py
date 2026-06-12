@@ -18,8 +18,9 @@ class Normalizer:
     5. 长度截断（可选）
     """
 
-    # 全角 → 半角映射
+    # 全角 → 半角映射（标点 + 数字 + 字母）
     _FULLWIDTH_MAP: dict[int, int] = {
+        # 标点
         0xFF01: 0x0021,  # ！
         0xFF08: 0x0028,  # （
         0xFF09: 0x0029,  # ）
@@ -28,6 +29,12 @@ class Normalizer:
         0xFF1A: 0x003A,  # ：
         0xFF1B: 0x003B,  # ；
         0xFF1F: 0x003F,  # ？
+        # 全角数字 ０-９ → 0-9 (U+FF10-U+FF19 → U+0030-U+0039)
+        **{0xFF10 + i: 0x0030 + i for i in range(10)},
+        # 全角大写字母 Ａ-Ｚ → A-Z (U+FF21-U+FF3A → U+0041-U+005A)
+        **{0xFF21 + i: 0x0041 + i for i in range(26)},
+        # 全角小写字母 ａ-ｚ → a-z (U+FF41-U+FF5A → U+0061-U+007A)
+        **{0xFF41 + i: 0x0061 + i for i in range(26)},
     }
 
     _HTML_TAG_RE = re.compile(r"<[^>]+>")

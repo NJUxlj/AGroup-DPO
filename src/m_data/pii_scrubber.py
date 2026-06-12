@@ -7,16 +7,7 @@ M02 § 3.3: 正则 + 词典双重脱敏。
 import re
 from typing import Optional
 
-
-# PII 正则模式（M02 § 3.3 定义）
-# 注意：不使用 \b 词边界，因为中文文本中不会有 ASCII 词边界
-# 顺序很重要：bank_card 必须在 id_card 之前（19 位银行卡会被 18 位身份证模式误匹配）
-PII_PATTERNS: list[tuple[str, re.Pattern, str]] = [
-    ("bank_card", re.compile(r"(?<!\d)\d{16,17}(?!\d)|(?<!\d)\d{19}(?!\d)"), "[银行卡号]"),
-    ("id_card", re.compile(r"\d{17}[\dXx]"), "[身份证号]"),
-    ("phone", re.compile(r"1[3-9]\d{9}"), "[手机号]"),
-    ("email", re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"), "[邮箱]"),
-]
+from m_data.pii_patterns import PII_PATTERNS
 
 
 class PIIScrubber:

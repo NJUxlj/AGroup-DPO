@@ -55,16 +55,22 @@ def setup_distributed():
 
 
 def run_all_reduce_test(size_mb: int = 64) -> float:
-    """执行 all-reduce 测试, 返回耗时 (毫秒)"""
+    """执行 all-reduce 测试, 返回耗时 (毫秒)
+    
+    Args:
+        size_mb (int): 测试数据大小 (MB)
+    Returns:
+        float: 平均耗时 (毫秒)
+    """
     rank = dist.get_rank()
     local_rank = int(os.environ["LOCAL_RANK"])
     device = torch.device(f"cuda:{local_rank}")
 
     # 构造 size_mb MB 的张量
-    numel = (size_mb * 1024 * 1024) // 4  # float32
-    tensor = torch.randn(numel, device=device, dtype=torch.float32)
+    numel = (size_mb * 1024 * 1024) // 4  # 计算元素个数（float32 占 4 字节）
+    tensor = torch.randn(numel, device=device, dtype=torch.float32)   # 创建一个指定大小的随机张量
 
-    # 预热
+    # 执行 3 次 all-reduce 来预热， 让 GPU 和 NCCL 进入稳定工作状态， 避免冷启动影响测试结果
     for _ in range(3):
         dist.all_reduce(tensor, op=dist.ReduceOp.SUM)
     torch.cuda.synchronize()
@@ -72,10 +78,10 @@ def run_all_reduce_test(size_mb: int = 64) -> float:
     # 正式测试 (5 次取平均)
     elapsed_ms_list = []
     for _ in range(5):
-        torch.cuda.synchronize()
-        t0 = time.perf_counter()
+        torch.cuda.synchronize()   # 等待之前的 gpu 操作完成
+        t0 = time.perf_counter()   # 记录开始时间
         dist.all_reduce(tensor, op=dist.ReduceOp.SUM)
-        torch.cuda.synchronize()
+        torch.cuda.synchronize()   # 等待 all-reduce 完成
         elapsed_ms = (time.perf_counter() - t0) * 1000
         elapsed_ms_list.append(elapsed_ms)
 

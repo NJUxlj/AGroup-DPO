@@ -134,18 +134,18 @@ class Pipeline:
             logger.warning("Source config missing 'path', skipping")
             return None
 
-        if source_type == "policy" or "policy" in str(cfg):
+        if source_type == "policy":
             from m_data.sources.policy import InsurancePolicySource
 
             return InsurancePolicySource(
                 data_path=data_path,
                 parser=cfg.get("parser", "json"),
             )
-        elif source_type == "faq" or "faq" in str(cfg):
+        elif source_type == "faq":
             from m_data.sources.faq import FAQSource
 
             return FAQSource(data_path=data_path)
-        elif source_type == "ticket" or "ticket" in str(cfg):
+        elif source_type == "ticket":
             from m_data.sources.ticket import TicketSource
 
             return TicketSource(
@@ -313,19 +313,22 @@ class Pipeline:
         return samples
 
     def build_sft_samples(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """构造 SFT 样本。"""
-        # 按来源分配策略标签
-        sft_samples = []
+        """构造 SFT 样本，按数据来源分配策略标签（S-A / S-B / S-C）。"""
+        # 按来源分组：policy/faq → S-A, ticket → S-B, 其他 → S-C
+        groups: dict[str, list[dict[str, Any]]] = {"S-A": [], "S-B": [], "S-C": []}
         for rec in records:
             source = rec.get("_source", "")
             if source in ("policy_v1", "faq_v2"):
-                label = "S-A"
+                groups["S-A"].append(rec)
             elif source == "ticket_v3":
-                label = "S-B"
+                groups["S-B"].append(rec)
             else:
-                label = "S-C"
-        # 实际通过 SFTBuilder 统一构造
-        samples = list(self._sft_builder.build_from_records(records, "S-A"))
+                groups["S-C"].append(rec)
+
+        samples: list[dict[str, Any]] = []
+        for label, recs in groups.items():
+            if recs:
+                samples.extend(self._sft_builder.build_from_records(recs, label))
         self._stats["sft_builder"]["total"] = len(samples)
         return samples
 
@@ -364,7 +367,7 @@ class Pipeline:
 
     @staticmethod
     def _get_text_fields(records: list[dict[str, Any]]) -> list[str]:
-        """从记录中自动发现文本字段名。"""
+        """从全部记录中自动发现文本字段名（取并集）。"""
         if not records:
             return []
         # 常见文本字段
@@ -373,5 +376,10 @@ class Pipeline:
             "article_content", "article_title", "prompt", "chosen", "rejected",
             "instruction", "input", "output", "raw_text",
         }
-        first = records[0]
-        return [k for k in first if k in candidates and isinstance(first[k], str)]
+        # 对所有记录取并集，避免第一条记录不包含某些字段时遗漏
+        fields: set[str] = set()
+        for rec in records:
+            for k in rec:
+                if k in candidates and isinstance(rec[k], str):
+                    fields.add(k)
+        return sorted(fields)
