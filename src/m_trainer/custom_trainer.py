@@ -327,17 +327,18 @@ class CustomTrainer:
         grad_accum = self.cfg.gradient_accumulation_steps
         warmup_steps = int(total_steps * self.cfg.warmup_ratio)
 
-        # LR scheduler
-        optimizer_for_scheduler = getattr(self, "optimizer", None)
-        if optimizer_for_scheduler is None and self.backend is not None:
-            optimizer_for_scheduler = getattr(self.backend, "_optimizer", None)
-
+        # LR scheduler (DeepSpeed 内部管理 LR，跳过 torch scheduler)
         scheduler = None
-        if optimizer_for_scheduler is not None:
-            if self.cfg.lr_scheduler_type == "cosine":
-                scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                    optimizer_for_scheduler, T_max=total_steps
-                )
+        if self.cfg.distributed_backend != "deepspeed":
+            optimizer_for_scheduler = getattr(self, "optimizer", None)
+            if optimizer_for_scheduler is None and self.backend is not None:
+                optimizer_for_scheduler = getattr(self.backend, "_optimizer", None)
+
+            if optimizer_for_scheduler is not None:
+                if self.cfg.lr_scheduler_type == "cosine":
+                    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                        optimizer_for_scheduler, T_max=total_steps
+                    )
 
         logger.info("Training: total_steps=%d, grad_accum=%d, warmup=%d", total_steps, grad_accum, warmup_steps)
 

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -41,9 +42,20 @@ def _train_llamafactory(config_path: str) -> int:
         logger.error("Config file not found: %s", config_path)
         return 1
 
-    logger.info("Delegating to llamafactory-cli train %s", config_path)
-    cmd = ["llamafactory-cli", "train", config_path]
-    result = subprocess.run(cmd)
+    # 使用当前 Python 解释器对应的 llamafactory-cli，避免 PATH 问题
+    import shutil
+    py_bin = str(Path(sys.executable).parent)
+    lf_cli = shutil.which("llamafactory-cli", path=py_bin)
+    if lf_cli is None:
+        lf_cli = "llamafactory-cli"  # fallback to PATH
+
+    # 将 Python bin 目录加入 PATH，确保 torchrun 等工具可被找到
+    env = os.environ.copy()
+    env["PATH"] = py_bin + os.pathsep + env.get("PATH", "")
+
+    logger.info("Delegating to %s train %s", lf_cli, config_path)
+    cmd = [lf_cli, "train", config_path]
+    result = subprocess.run(cmd, env=env)
     return result.returncode
 
 

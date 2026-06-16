@@ -193,10 +193,59 @@ copaw-dpo evaluate \
 | 策略 | 怎么做的 |
 |------|----------|
 | 基于规则的硬负例 | 基于条款强制构造合规/违规答案对 |
-| LLM-as-Judge | 用本地 Qwen2.5-7B (也支持第三方API) 对比 RAG 答案和专家标注 |
-| 检索差异 | 完整索引 vs 截断索引的 RAG 答案对比 |
+| LLM-as-Judge | 用本地 Qwen2.5-7B-Instruct (也支持第三方API) 对比 RAG 答案和专家标注 |
+| RAG检索差异 | 拥有完整索引的回答 vs 只有截断索引的 RAG 答案对比 |
+
+--- 
+
+三种配置对方式到底哪里不一样：
+| 维度 | 策略 A: rule_based | 策略 B: llm_judge | 策略 C: retrieval_diff |
+|------|-------------------|-------------------|----------------------|
+| **chosen 来源** | 人工编写的合规答案 / 从FAQ 中提取的专家答案 | LLM 判断胜出者（expert vs RAG） | 拥有完整索引的 RAG 答案 |
+| **rejected 来源** | 人工编写错误答案 / 模糊搪塞回复 | LLM 判断落败者 | 只有截断索引 RAG 答案 |
+| **信号强度** | 强（确定性的正确/错误） | 中（LLM 主观判断） | 中（检索质量差异） |
+| **是否需要 LLM** | ❌ 不需要 | ✅ 需要 | ❌ 不需要（但需要 RAG 服务） |
+| **是否需要外部服务** | ❌ | ✅ LLM endpoint | ✅ RAG endpoint |
+| **扩展性** | 低（需人工编写模板） | 高（自动判断） | 高（自动构造） |
+| **产出样本数** | ~155 条内置样本 + N 条从FAQ/工单产出的样本 | 取决于有 expert+rag 双答案的 record 数 | 取决于 RAG 返回差异的 record 数 |
+
+
+注意： 如何定义 “拥有完整索引的 RAG 答案”
+- 这里的 RAG 是公司内提供的服务， 与我们当前的项目是隔离的， `索引` 指的是 RAG 所使用的向量数据库的索引。
+- index_type="full"：RAG 服务使用完整知识库进行检索——所有保险条款、FAQ、工单数据全部纳入向量索引，能召回最全面、最准确的条款内容来生成答案。
+
+- index_type="trunc"：RAG 服务使用人为截断的知识库——可能随机丢弃了一部分条款文档、或只索引了部分章节，导致检索召回不全，生成的答案质量打折扣。
+
+核心设计意图：这是一种自动构造偏好对的数据增强技巧。同一个问题，打给同一个 RAG 系统两次——一次给"满血版"知识库，一次给"残血版"知识库。两者的答案差异天然构成了一对 chosen（完整索引答案）和 rejected（截断索引答案），完全不需要人工标注。
+
+---
+
+
+三种策略产出的样本通过 _make_dpo_sample() 统一为以下结构
+
+```python
+{
+    "prompt": str,              # 用户问题
+    "chosen": str,              # 优选答案
+    "rejected": str,            # 劣选答案
+    "source": "rule_based" | "llm_judge" | "retrieval_diff",
+    "policy_id": str | None,    # 关联的保险条款ID
+    "judge_model": str | None,  # 仅 llm_judge 策略
+    "judge_score_chosen": float | None,
+    "judge_score_rejected": float | None,
+    "pii_scrubbed": True,
+    "version": "dpo_v1.2",
+}
+
+```
+
+
+---
+
 
 数据源：保险条款（PDF/HTML）、业务 FAQ、历史工单
+
+
 
 校验规则：prompt 长度、chosen/rejected 长度、PII 检测、条款引用检查、相似度去重
 

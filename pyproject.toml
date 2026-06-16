@@ -31,17 +31,20 @@ dependencies = [
     "trl==0.9.6",
     "bitsandbytes==0.45.5",
     "llamafactory==0.9.1",
-    "deepspeed==0.14.4",
     "nvtx==0.2.10",
 ]
 
+[project.optional-dependencies]
+# 训练后端 (可选)
+train = [
+    "deepspeed==0.14.4",
+]
 # 推理依赖 (可选) - vllm 0.5.4 强依赖 torch==2.4.0, 必须 >=0.8.5
 inference = [
     "vllm>=0.8.5,<0.9.0",
     "xinference>=0.15.4",
     "openai==1.35.0",
 ]
-
 # 评测依赖 (可选)
 evaluation = [
     "sacrebleu==2.4.2",
@@ -50,10 +53,8 @@ evaluation = [
     "jiwer==3.0.3",
     "bert-score==0.3.13",
 ]
-
-[project.optional-dependencies]
 all = [
-    "agroup-dpo[inference,evaluation]",
+    "agroup-dpo[train,inference,evaluation]",
 ]
 
 # 项目脚本入口

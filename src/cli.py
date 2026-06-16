@@ -54,6 +54,20 @@ copaw-dpo — AGroup DPO 统一命令行工具
 
 
 def main() -> None:
+    # 过滤分布式启动器注入的参数（--local_rank, --master_addr 等）
+    _filtered = [sys.argv[0]]
+    _skip = False
+    for a in sys.argv[1:]:
+        if _skip:
+            _skip = False
+            continue
+        if a.startswith("--local_rank") or a.startswith("--master_addr") or a.startswith("--master_port") or a.startswith("--node_rank") or a.startswith("--nproc_per_node") or a.startswith("--nnodes"):
+            if "=" not in a:
+                _skip = True
+            continue
+        _filtered.append(a)
+    sys.argv = _filtered
+
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         print(HELP_TEXT)
         sys.exit(0)
@@ -66,8 +80,6 @@ def main() -> None:
         print(f"运行 copaw-dpo --help 查看帮助。")
         sys.exit(1)
 
-    # 将剩余参数传递给子模块 CLI
-    # sys.argv[0] 保持为 copaw-dpo，后续参数作为子命令的参数
     remaining = sys.argv[2:]
 
     module_name = COMMANDS[command]
@@ -79,22 +91,22 @@ def main() -> None:
 
     elif command == "data":
         # m_data.cli 使用 argparse 直接解析 sys.argv
-        sys.argv = ["copaw-dpo", "data"] + remaining
+        sys.argv = ["copaw-dpo"] + remaining
         import m_data.cli as mod
         mod.main()
 
     elif command == "infer":
-        sys.argv = ["copaw-dpo", "infer"] + remaining
+        sys.argv = ["copaw-dpo"] + remaining
         import m_infer.cli as mod
         mod.main()
 
     elif command == "evaluate":
-        sys.argv = ["copaw-dpo", "evaluate"] + remaining
+        sys.argv = ["copaw-dpo"] + remaining
         import m_eval.cli as mod
         mod.main()
 
     elif command == "merge":
-        sys.argv = ["copaw-dpo", "merge"] + remaining
+        sys.argv = ["copaw-dpo"] + remaining
         import m_merge.cli as mod
         mod.main()
 
