@@ -58,12 +58,12 @@ all = [
 
 # 项目脚本入口
 [project.scripts]
-copaw-dpo = "agroup_dpo.cli:main"
+copaw-dpo = "cli:main"
 
 # 包发现
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["agroup_dpo*"]
+include = ["m_*", "cli", "llm"]
 
 # pytest 配置
 [tool.pytest.ini_options]

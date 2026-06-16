@@ -123,16 +123,16 @@ def main():
     results = []
     for req, resp in zip(requests, responses):
         item = {
-            "prompt": req.prompt[:100],
-            "output": resp.text[:200],
+            "prompt": req.prompt[:200],
+            "output": resp.text[:500],
             "prompt_tokens": resp.prompt_tokens,
             "generated_tokens": resp.generated_tokens,
             "latency_ms": resp.latency_ms,
             "total_latency_ms": resp.total_latency_ms,
         }
         results.append(item)
-        print(f"\nQ: {req.prompt[:80]}{'...' if len(req.prompt) > 80 else ''}")
-        print(f"A: {resp.text[:150]}{'...' if len(resp.text) > 150 else ''}")
+        print(f"\nQ: {req.prompt[:200]}{'...' if len(req.prompt) > 200 else ''}")
+        print(f"A: {resp.text[:500]}{'...' if len(resp.text) > 500 else ''}")
 
     if args.output:
         output_path = Path(args.output)

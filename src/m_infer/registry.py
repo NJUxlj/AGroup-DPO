@@ -18,7 +18,8 @@ def list_backends() -> list[str]:
 
 
 def register_backend(name: str, module_class: str) -> None:
-    """注册自定义推理后端。
+    """
+    注册自定义推理后端。
 
     Args:
         name: 后端名称
@@ -35,7 +36,8 @@ def register_backend(name: str, module_class: str) -> None:
 
 
 def unregister_backend(name: str) -> None:
-    """注销推理后端。
+    """
+    注销推理后端。
 
     Args:
         name: 后端名称
