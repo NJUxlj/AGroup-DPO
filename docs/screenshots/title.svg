@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="140" viewBox="0 0 800 140">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF4500"/>
+      <stop offset="30%" stop-color="#FF6B00"/>
+      <stop offset="60%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#FF4500"/>
+    </linearGradient>
+    <filter id="sh">
+      <feDropShadow dx="3" dy="4" stdDeviation="4" flood-color="#993300" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <rect width="800" height="140" fill="transparent"/>
+  <text x="400" y="85" text-anchor="middle" font-family="Arial,Helvetica,sans-serif"
+        font-size="72" font-weight="900" fill="url(#g1)" filter="url(#sh)"
+        letter-spacing="6">AGroup DPO</text>
+  <text x="400" y="125" text-anchor="middle" font-family="Arial,Helvetica,sans-serif"
+        font-size="18" fill="#888888" font-weight="400" letter-spacing="8">
+    保险 · 偏好对齐 · 工程化
+  </text>
+</svg>

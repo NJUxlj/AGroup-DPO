@@ -1,0 +1,35 @@
+============================================================
+  AGroup DPO — Smoke DPO 训练结果 (server6, 1×RTX 4090)
+============================================================
+
+$ FORCE_TORCHRUN=1 CUDA_VISIBLE_DEVICES=0 \
+  llamafactory-cli train configs/smoke_dpo_insurance.yaml
+
+Model: Qwen2.5-1.5B-Instruct (1.5B params)
+LoRA: rank=8, alpha=16, trainable=9,232,384 (0.59%)
+Data: insurance_dpo_v1.2 (7,287 samples)
+Max steps: 10
+
+Step 1  | loss=0.6931 | margins=0.0000 | acc=0.00
+Step 2  | loss=0.7639 | margins=-0.1368 | acc=0.00
+Step 3  | loss=0.6875 | margins=0.0113  | acc=1.00
+Step 4  | loss=0.7093 | margins=-0.0321 | acc=0.00
+Step 5  | loss=0.6490 | margins=0.0903  | acc=1.00
+Step 6  | loss=0.7029 | margins=-0.0194 | acc=0.00
+Step 7  | loss=0.7147 | margins=-0.0427 | acc=0.00
+Step 8  | loss=0.6992 | margins=-0.0121 | acc=0.00
+Step 9  | loss=0.6710 | margins=0.0448  | acc=1.00
+Step 10 | loss=0.6853 | margins=0.0157  | acc=1.00
+
+============================================================
+Training Summary
+============================================================
+  Train loss:           0.6976
+  Train runtime:        2.67s
+  Samples/second:       3.739
+  Steps/second:         3.739
+============================================================
+
+✓ Checkpoint saved to saves/smoke/dpo_insurance/
+✓ Loss plot: saves/smoke/dpo_insurance/training_loss.png
+✓ Rewards plot: saves/smoke/dpo_insurance/training_rewards_accuracies.png

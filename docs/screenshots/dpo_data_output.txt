@@ -1,0 +1,39 @@
+============================================================
+  AGroup DPO — 数据流水线运行结果 (server6, 2×RTX 4090)
+============================================================
+
+$ PYTHONPATH=src python -m m_data.cli \
+    --config configs/data/insurance_dpo_gen.yaml
+
+[Pipeline] Step 1/6: Collecting from 3 sources
+  Source 'policy_v1': 32 records
+  Source 'faq_v2': 5033 records
+  Source 'ticket_v3': 2015 records
+[Pipeline] Collected 7080 records from 3 sources
+
+[Pipeline] Step 2/6: Normalizing
+[Pipeline] Step 3/6: PII scrubbing
+[Pipeline] Step 4/6: Filtering
+[Pipeline] After filter: 7048 records
+
+[Pipeline] Step 5/6: Building pairs
+[Pipeline] Built 7251 DPO + 7048 SFT samples
+[Dedup] Removed 4 duplicate prompts
+[Pipeline] After prompt dedup: 7247 DPO samples
+
+[Pipeline] Step 6/6: Validating & exporting
+[Repair] Attempted 78, repaired 78
+[Validator] 7247/7247 passed (100.0%) [repaired: 78]
+
+============================================================
+Pipeline Summary
+============================================================
+  DPO samples:  7247
+  SFT samples:  7048
+  Elapsed:      0.7s
+  Validator:    7247/7247 passed (100.0%)
+============================================================
+  DPO written:  7247
+  SFT written:  7048
+  Holdout:      704 samples → data/eval/insurance_qa_500.jsonl
+  Report:       reports/dpo_data_quality_v1.2.md
