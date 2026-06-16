@@ -70,6 +70,8 @@ class InsurancePolicySource(DataSource):
 
     def _parse_file(self, file_path: Path) -> Iterator[RawRecord]:
         if file_path.suffix == ".json":
+            # yield from 将子生成器（此处为 _parse_json）产出的每个值直接传递给当前生成器的调用者。
+            # 其效果等同于：for record in self._parse_json(file_path): yield record
             yield from self._parse_json(file_path)
         elif file_path.suffix == ".jsonl":
             yield from self._parse_jsonl(file_path)
@@ -136,7 +138,8 @@ class InsurancePolicySource(DataSource):
         )
 
     def _parse_pdf(self, file_path: Path) -> Iterator[RawRecord]:
-        """解析 PDF 条款文件，提取全文。
+        """
+        解析 PDF 条款文件，提取全文。
 
         优先使用 PyPDF2，其次 pdfplumber。均为可选依赖。
         每页作为一个独立 RawRecord 产出。

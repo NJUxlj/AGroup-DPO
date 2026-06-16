@@ -319,6 +319,123 @@ class TestRepairMissingReference:
         }
         assert Pipeline._repair_missing_reference(sample) is None
 
+    def test_repair_falls_back_when_policy_store_is_none(self):
+        """policy_store=None 时回退到模板兜底（兼容旧行为）。"""
+        sample = {
+            "prompt": "等待期内确诊是否赔付？",
+            "chosen": "等待期内确诊一般不予赔付。",
+            "rejected": "都会赔付。",
+            "policy_id": "POL-CRIT-001",
+            "pii_scrubbed": True,
+            "version": "dpo_v1.2",
+        }
+        fixed = Pipeline._repair_missing_reference(sample, policy_store=None)
+        assert fixed is not None
+        assert "具体参见POL-CRIT-001相关条款及保单约定" in fixed["chosen"]
+
+    def test_repair_with_mock_policy_store(self):
+        """有可用 PolicyStore 时使用真实条款内容修复。"""
+        sample = {
+            "prompt": "等待期内确诊是否赔付？",
+            "chosen": "等待期内确诊一般不予赔付，合同另有约定的除外。",
+            "rejected": "都会赔付。",
+            "policy_id": "POL-CRIT-001",
+            "pii_scrubbed": True,
+            "version": "dpo_v1.2",
+        }
+        mock_store = _make_mock_policy_store()
+        fixed = Pipeline._repair_missing_reference(sample, policy_store=mock_store)
+        assert fixed is not None
+        # 应包含真实条款内容而非模板兜底
+        assert "等待期" in fixed["chosen"]
+        assert "90日" in fixed["chosen"]
+        assert "第2.1条" in fixed["chosen"]
+        assert "依据POL-CRIT-001" in fixed["chosen"]
+        # 不应包含模板兜底语
+        assert "具体参见POL-CRIT-001相关条款及保单约定" not in fixed["chosen"]
+
+
+class TestBuildClauseSuffix:
+    def test_returns_empty_when_store_is_none(self):
+        """store 为 None 时返回空字符串。"""
+        result = Pipeline._build_clause_suffix(
+            policy_id="POL-001", prompt="测试", policy_store=None,
+        )
+        assert result == ""
+
+    def test_returns_empty_when_policy_id_is_none(self):
+        """policy_id 为 None 时返回空字符串。"""
+        mock_store = _make_mock_policy_store()
+        result = Pipeline._build_clause_suffix(
+            policy_id=None, prompt="测试", policy_store=mock_store,
+        )
+        assert result == ""
+
+    def test_returns_formatted_clause(self):
+        """正常检索返回格式化条款引用。"""
+        mock_store = _make_mock_policy_store()
+        result = Pipeline._build_clause_suffix(
+            policy_id="POL-CRIT-001",
+            prompt="等待期内确诊是否赔付？",
+            policy_store=mock_store,
+        )
+        assert "依据POL-CRIT-001" in result
+        assert "第2.1条" in result
+        assert "等待期" in result
+        assert "90日" in result
+
+    def test_truncates_long_clause_content(self):
+        """条款内容过长时自动截断。"""
+        mock_store = _make_mock_policy_store(long_content=True)
+        result = Pipeline._build_clause_suffix(
+            policy_id="POL-CRIT-001",
+            prompt="测试",
+            policy_store=mock_store,
+        )
+        # 每条截断后 ≤ 150 字 + 前缀，总后缀 ≤ ~500
+        assert len(result) < 600
+        assert "..." in result
+
+
+# ------------------------------------------------------------------
+# Mock helpers
+# ------------------------------------------------------------------
+
+
+def _make_mock_policy_store(long_content: bool = False) -> object:
+    """构造模拟 PolicyStore，返回预设的条款检索结果。"""
+    from unittest.mock import MagicMock
+
+    store = MagicMock()
+    store.ready = True
+
+    base_content = (
+        "自本合同生效日起90日内（含第90日）为等待期。"
+        "被保险人在等待期内经医院初次确诊罹患本合同约定的重大疾病，"
+        "保险人不承担保险责任，但无息退还已交纳的保险费，本合同终止。"
+        "因意外伤害导致罹患重大疾病的，不受等待期限制。"
+    )
+    if long_content:
+        base_content = base_content * 5  # ~750 chars
+
+    store.search.return_value = [
+        {
+            "policy_id": "POL-CRIT-001",
+            "article_id": "2.1",
+            "article_title": "等待期",
+            "article_content": base_content,
+            "score": 0.85,
+        },
+        {
+            "policy_id": "POL-CRIT-001",
+            "article_id": "1.1",
+            "article_title": "保险责任",
+            "article_content": "被保险人在等待期后，经医院初次确诊罹患本合同约定的重大疾病，保险人按基本保险金额给付重大疾病保险金，本合同终止。",
+            "score": 0.72,
+        },
+    ]
+    return store
+
 
 class TestValidateAndRepair:
     def test_validate_and_repair_fixes_missing_reference(self, tmp_dir):

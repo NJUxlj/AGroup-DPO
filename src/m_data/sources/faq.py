@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 class FAQSource(DataSource):
-    """从 FAQ 知识库文件中提取问答对。
+    """
+    从 FAQ 知识库文件中提取问答对。
 
     支持格式：
     - JSON: [{"category": "...", "question": "...", "answer": "..."}]
@@ -37,6 +38,7 @@ class FAQSource(DataSource):
     def fetch(self, since: datetime | None = None, limit: int = 0) -> Iterator[RawRecord]:
         count = 0
         for file_path in self._iter_files():
+            # 若指定了增量更新时间 since 且文件最后修改时间早于该时间，则跳过当前文件（实现增量采集过滤）
             if since and self._file_mtime(file_path) < since:
                 continue
             try:
@@ -56,6 +58,9 @@ class FAQSource(DataSource):
                 yield from self._data_path.rglob(f"*{ext}")
 
     def _parse_file(self, file_path: Path) -> Iterator[RawRecord]:
+        '''
+        根据文件类型， 路由到不同的函数进行解析
+        '''
         if file_path.suffix == ".json":
             yield from self._parse_json(file_path)
         elif file_path.suffix == ".jsonl":

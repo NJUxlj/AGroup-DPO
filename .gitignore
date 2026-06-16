@@ -1,1 +1,33 @@
-**/_pycache__
+**/__pycache__
+
+# Milvus Lite local database files
+milvus_data/
+
+# Python bytecode
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Output data (generated datasets)
+data/insurance/dpo_train_*.jsonl
+data/insurance/insurance_sft_*.jsonl
+
+# Wandb
+wandb/
+
+# Checkpoints
+outputs/

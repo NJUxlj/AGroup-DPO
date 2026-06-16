@@ -47,7 +47,8 @@ class TrainerConfig:
 
 
 class DistributedBackend(ABC):
-    """所有分布式后端的统一接口。
+    """
+    所有分布式后端的统一接口。
 
     每个后端适配器必须实现本接口的所有抽象方法。
     optimizer 的创建策略因后端而异：
@@ -65,7 +66,8 @@ class DistributedBackend(ABC):
         optimizer: Optional[torch.optim.Optimizer],
         config: TrainerConfig,
     ) -> tuple[nn.Module, Any]:
-        """初始化分布式环境。
+        """
+        初始化分布式环境。
 
         Args:
             model: 原始模型（未包装）

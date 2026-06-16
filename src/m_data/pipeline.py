@@ -27,6 +27,7 @@ from m_data.exporter import Exporter
 from m_data.normalizer import Normalizer
 from m_data.pair_builder import PairBuilder
 from m_data.pii_scrubber import PIIScrubber
+from m_data.policy_store import PolicyStore
 from m_data.sft_builder import SFTBuilder
 from m_data.sources.base import DataSource
 from m_data.validator import Validator
@@ -63,6 +64,7 @@ class Pipeline:
         self._validator: Optional[Validator] = None
         self._dpo_exporter: Optional[Exporter] = None
         self._sft_exporter: Optional[Exporter] = None
+        self._policy_store: Optional[PolicyStore] = None
 
         # 统计
         self._stats: dict[str, Any] = {
@@ -134,6 +136,16 @@ class Pipeline:
             max_response_len=quality.get("max_response_len", 2048),
             max_chosen_rejected_similarity=quality.get("max_chosen_rejected_similarity", 0.95),
         )
+
+        # PolicyStore (Milvus 向量库，用于条款检索修复)
+        ps_cfg = self._cfg.get("policy_store")
+        if ps_cfg and ps_cfg.get("enabled", True):
+            try:
+                self._policy_store = PolicyStore(ps_cfg)
+                self._policy_store.ensure_ready()
+            except Exception as e:
+                logger.warning("PolicyStore init failed, will use fallback repair: %s", e)
+                self._policy_store = None
 
         # Exporter
         output = self._cfg.get("output", {})
@@ -441,7 +453,7 @@ class Pipeline:
         if to_repair:
             repaired: list[dict[str, Any]] = []
             for s in to_repair:
-                fixed = self._repair_missing_reference(s)
+                fixed = self._repair_missing_reference(s, policy_store=self._policy_store)
                 if fixed:
                     repaired.append(fixed)
             if repaired:
@@ -475,18 +487,39 @@ class Pipeline:
         return valid
 
     @staticmethod
-    def _repair_missing_reference(sample: dict[str, Any]) -> dict[str, Any] | None:
+    def _repair_missing_reference(
+        sample: dict[str, Any],
+        policy_store: Optional[PolicyStore] = None,
+    ) -> dict[str, Any] | None:
         """对缺少条款引用的 DPO 样本尝试修复。
 
-        若 policy_id 存在则追加具体引用语，否则追加通用引用语。
+        修复策略（优先级从高到低）：
+        1. Milvus 混合检索：若存在 policy_id 且 PolicyStore 可用，按 prompt 语义 +
+           关键词检索条款原文片段，追加到 chosen 末尾。
+        2. ID 兜底：若 policy_id 存在但 Milvus 不可用/无结果，追加带 policy_id
+           的通用引用语。
+        3. 通用兜底：若无 policy_id，追加不带 ID 的通用引用语。
         """
         fixed = copy.deepcopy(sample)
         chosen = fixed.get("chosen", "")
         policy_id = fixed.get("policy_id")
+        prompt = fixed.get("prompt", "")
 
         if not chosen:
             return None
 
+        # ── 策略 1: Milvus 真实条款检索 ──
+        clause_suffix = Pipeline._build_clause_suffix(
+            policy_id=policy_id,
+            prompt=prompt,
+            policy_store=policy_store,
+        )
+        if clause_suffix:
+            if clause_suffix.strip() not in chosen:
+                fixed["chosen"] = chosen.rstrip() + clause_suffix
+            return fixed
+
+        # ── 策略 2 & 3: ID 兜底 / 通用兜底 ──
         if policy_id:
             ref_suffix = f" 具体参见{policy_id}相关条款及保单约定。"
         else:
@@ -497,6 +530,50 @@ class Pipeline:
             fixed["chosen"] = chosen.rstrip() + ref_suffix
 
         return fixed
+
+    @staticmethod
+    def _build_clause_suffix(
+        policy_id: str | None,
+        prompt: str,
+        policy_store: Optional[PolicyStore] = None,
+    ) -> str:
+        """通过 Milvus 混合检索构造条款引用后缀。
+
+        Returns:
+            条款引用文本；若检索失败或无结果则返回空字符串。
+        """
+        if not policy_id or not policy_store or not policy_store.ready:
+            return ""
+
+        try:
+            clauses = policy_store.search(policy_id=policy_id, prompt=prompt)
+        except Exception as e:
+            logger.warning("PolicyStore search failed for %s: %s", policy_id, e)
+            return ""
+
+        if not clauses:
+            return ""
+
+        # 选取 top-2 条（避免 chosen 末尾过长）
+        top_clauses = clauses[:2]
+        fragments: list[str] = []
+        for c in top_clauses:
+            art_id = c.get("article_id", "")
+            title = c.get("article_title", "")
+            content = c.get("article_content", "")
+            # 截断每条条款内容至 ~150 字，保持可读性
+            if len(content) > 150:
+                content = content[:147] + "..."
+            if art_id and title:
+                fragment = f"第{art_id}条（{title}）：{content}"
+            elif art_id:
+                fragment = f"第{art_id}条：{content}"
+            else:
+                fragment = content
+            fragments.append(fragment)
+
+        clause_text = "；".join(fragments)
+        return f" 依据{policy_id}：{clause_text}。"
 
     @staticmethod
     def _dedup_by_prompt(samples: list[dict[str, Any]]) -> list[dict[str, Any]]:

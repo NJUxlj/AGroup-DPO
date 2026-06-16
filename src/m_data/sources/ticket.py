@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 
 class TicketSource(DataSource):
-    """从历史工单文件中提取合规问答对。
+    """
+    从历史工单文件中提取合规问答对。
 
     工单记录结构：
     {

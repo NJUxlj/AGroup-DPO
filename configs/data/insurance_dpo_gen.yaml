@@ -54,6 +54,19 @@ quality:
   max_response_len: 2048
   max_chosen_rejected_similarity: 0.95
 
+# ── Milvus 向量库配置（条款检索修复用）──
+# 首次运行时会自动扫描 data_dir 下的 policy JSON 文件，
+# 将 article_content 编码为向量存入本地 Milvus Lite 文件。
+# 若依赖缺失 (pymilvus / sentence-transformers)，自动回退到模板兜底修复。
+policy_store:
+  enabled: true
+  data_dir: data/insurance/raw/policies/
+  embedding_model: BAAI/bge-small-zh-v1.5   # 中英文检索优化，dim=512
+  embedding_dim: 512
+  milvus_db_path: ./milvus_data/policy_store.db
+  collection_name: policy_clauses
+  top_k: 3
+
 output:
   path: data/insurance/dpo_train_v1.2.jsonl
   shared_path: /shared/datasets/insurance_dpo/dpo_train_v1.2.jsonl

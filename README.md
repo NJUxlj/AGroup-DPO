@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/screenshots/title.svg" alt="AGroup DPO" width="700">
+  <img src="docs/screenshots/title.png" alt="AGroup DPO" width="700">
 </p>
 
 <p align="center">
