@@ -1,8 +1,11 @@
 """测试 Chosen/Rejected 配对构造器 (m_data/pair_builder.py)"""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from m_data.pair_builder import PairBuilder
+from llm.llm_provider import LLMProvider
 
 
 class TestPairBuilder:
@@ -102,3 +105,181 @@ class TestPairBuilder:
 
         s3 = {"prompt": "a", "chosen": "b", "rejected": "d"}
         assert PB._dedup_key(s1) != PB._dedup_key(s3)
+
+
+# ------------------------------------------------------------------
+# judge_provider (LLMProvider) 集成测试
+# ------------------------------------------------------------------
+
+
+class TestPairBuilderWithJudgeProvider:
+    """测试 PairBuilder 通过 LLMProvider 使用第三方 API 的路径。"""
+
+    @staticmethod
+    def _make_mock_provider(winner_response: str = '{"winner": "A", "score_a": 0.9, "score_b": 0.3}'):
+        """创建一个 mock LLMProvider，chat() 返回预设的 JSON。"""
+        provider = MagicMock(spec=LLMProvider)
+        provider.chat.return_value = winner_response
+        provider.model = "test-judge"
+        return provider
+
+    def test_llm_judge_with_provider_yields_samples(self):
+        """验证通过 LLMProvider 的 judge 路径生成样本。"""
+        mock_provider = self._make_mock_provider()
+        builder = PairBuilder(
+            enabled_strategies=["llm_judge"],
+            judge_provider=mock_provider,
+        )
+        records = [
+            {
+                "question": "测试问题",
+                "answer": "专家答案",
+                "rag_baseline_answer": "RAG答案",
+            },
+        ]
+        samples = list(builder.build_from_records(records))
+        # 应该产出 1 条样本（winner=A → expert 是 chosen）
+        assert len(samples) == 1
+        assert samples[0]["source"] == "llm_judge"
+        assert samples[0]["judge_model"] == "test-judge"
+
+    def test_llm_judge_with_provider_tie_skips(self):
+        """验证 judge 判定 TIE 时跳过。"""
+        mock_provider = self._make_mock_provider(
+            '{"winner": "TIE", "score_a": 0.5, "score_b": 0.5}'
+        )
+        builder = PairBuilder(
+            enabled_strategies=["llm_judge"],
+            judge_provider=mock_provider,
+        )
+        records = [
+            {
+                "question": "测试问题",
+                "answer": "专家答案",
+                "rag_baseline_answer": "RAG答案",
+            },
+        ]
+        samples = list(builder.build_from_records(records))
+        assert len(samples) == 0
+
+    def test_llm_judge_with_provider_winner_b(self):
+        """验证 judge 判定 B 为 winner 时交换 chosen/rejected。"""
+        mock_provider = self._make_mock_provider(
+            '{"winner": "B", "score_a": 0.2, "score_b": 0.8}'
+        )
+        builder = PairBuilder(
+            enabled_strategies=["llm_judge"],
+            judge_provider=mock_provider,
+        )
+        records = [
+            {
+                "question": "测试问题",
+                "answer": "专家答案",
+                "rag_baseline_answer": "RAG答案很优秀",
+            },
+        ]
+        samples = list(builder.build_from_records(records))
+        assert len(samples) == 1
+        # winner=B → RAG 答案（candidate_b）是 chosen
+        assert samples[0]["chosen"] == "RAG答案很优秀"
+        assert samples[0]["rejected"] == "专家答案"
+
+    def test_llm_judge_with_provider_no_rag_answer_skips(self):
+        """验证缺少 rag_baseline_answer 时跳过。"""
+        mock_provider = self._make_mock_provider()
+        builder = PairBuilder(
+            enabled_strategies=["llm_judge"],
+            judge_provider=mock_provider,
+        )
+        records = [
+            {
+                "question": "测试问题",
+                "answer": "专家答案",
+                # 缺少 rag_baseline_answer
+            },
+        ]
+        samples = list(builder.build_from_records(records))
+        assert len(samples) == 0
+
+    def test_llm_judge_provider_error_returns_tie(self):
+        """验证 LLMProvider 异常时优雅降级（不崩溃，返回 TIE 跳过）。"""
+        mock_provider = MagicMock(spec=LLMProvider)
+        mock_provider.chat.side_effect = Exception("API down")
+        mock_provider.model = "test-judge"
+
+        builder = PairBuilder(
+            enabled_strategies=["llm_judge"],
+            judge_provider=mock_provider,
+        )
+        records = [
+            {
+                "question": "测试问题",
+                "answer": "专家答案",
+                "rag_baseline_answer": "RAG答案",
+            },
+        ]
+        samples = list(builder.build_from_records(records))
+        # 异常时返回 TIE，跳过
+        assert len(samples) == 0
+
+    def test_llm_judge_provider_with_thinking_tags(self):
+        """验证 LLMProvider 响应包含 thinking tags 时正确提取 JSON。"""
+        mock_provider = MagicMock(spec=LLMProvider)
+        # 模拟带 thinking tags 的响应
+        mock_provider.chat.return_value = (
+            '<thinking>需要分析两个答案的合规性</thinking>\n'
+            '{"winner": "A", "score_a": 0.92, "score_b": 0.31}'
+        )
+        mock_provider.model = "test-judge"
+
+        builder = PairBuilder(
+            enabled_strategies=["llm_judge"],
+            judge_provider=mock_provider,
+        )
+        records = [
+            {
+                "question": "测试问题",
+                "answer": "专家答案非常合规",
+                "rag_baseline_answer": "RAG答案不够好",
+            },
+        ]
+        samples = list(builder.build_from_records(records))
+        assert len(samples) == 1
+        assert samples[0]["judge_score_chosen"] == 0.92
+
+    def test_provider_and_endpoint_both_set_uses_provider(self):
+        """验证同时设置 provider 和 endpoint 时优先使用 provider。"""
+        mock_provider = self._make_mock_provider()
+        builder = PairBuilder(
+            enabled_strategies=["llm_judge"],
+            judge_provider=mock_provider,
+            judge_endpoint="http://old-endpoint:8000/v1",
+        )
+        records = [
+            {
+                "question": "测试",
+                "answer": "答案A",
+                "rag_baseline_answer": "答案B",
+            },
+        ]
+        samples = list(builder.build_from_records(records))
+        # provider 被调用（产出样本），endpoint 被忽略
+        assert len(samples) == 1
+        mock_provider.chat.assert_called()
+
+    def test_no_provider_no_endpoint_skips(self):
+        """验证既无 provider 也无 endpoint 时跳过策略 B。"""
+        builder = PairBuilder(
+            enabled_strategies=["llm_judge"],
+            judge_provider=None,
+            judge_endpoint=None,
+        )
+        records = [
+            {
+                "question": "测试",
+                "answer": "答案A",
+                "rag_baseline_answer": "答案B",
+            },
+        ]
+        samples = list(builder.build_from_records(records))
+        assert len(samples) == 0

@@ -30,10 +30,15 @@ strategies:
     # rules_file: configs/data/rules/hard_negatives.yaml
   llm_judge:
     enabled: false
-    # 本地无 Judge 模型时关闭此策略
-    # 在 server2 上可启用并配置 judge_endpoint
+    # ── LLM-as-Judge 配置 ──
+    # 支持两种模式：
+    #   1. 本地模型（api_key 留空）：直接连本地 vLLM / xinference
+    #   2. 第三方 API（需填 api_key）：OpenAI / 通义千问 / DeepSeek 等
+    #   例如 OpenAI:   base_url=https://api.openai.com/v1, api_key=sk-xxx
+    #   例如通义千问:  base_url=https://dashscope.aliyuncs.com/compatible-mode/v1, api_key=sk-xxx
     judge_model: qwen2.5-7b-instruct
     judge_endpoint: http://127.0.0.1:8001/v1/chat/completions
+    api_key: ""
     rag_endpoint: http://rag.internal/v1/rag/query
   retrieval_diff:
     enabled: false

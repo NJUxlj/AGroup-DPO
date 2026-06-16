@@ -13,9 +13,12 @@ import json
 import logging
 import random
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator, Optional, TYPE_CHECKING
 
 from m_data.templates import HARD_NEGATIVE_TEMPLATES
+
+if TYPE_CHECKING:
+    from llm.llm_provider import LLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +39,7 @@ class PairBuilder:
         enabled_strategies: Optional[list[str]] = None,
         judge_model: str = "qwen2.5-7b-instruct",
         judge_endpoint: Optional[str] = None,
+        judge_provider: Optional["LLMProvider"] = None,
         rag_endpoint: Optional[str] = None,
     ):
         """
@@ -43,12 +47,15 @@ class PairBuilder:
             enabled_strategies: 启用的策略列表，默认全部。
                 ["rule_based", "llm_judge", "retrieval_diff"]
             judge_model: LLM-as-Judge 模型名。
-            judge_endpoint: Judge 模型的 OpenAI 兼容 endpoint。
+            judge_endpoint: Judge 模型的 OpenAI 兼容 endpoint（旧方式，向后兼容）。
+            judge_provider: LLMProvider 实例（支持第三方 API key）。
+                若提供则优先使用，否则回退到 judge_endpoint 原始 HTTP 调用。
             rag_endpoint: 司内 RAG 端 endpoint。
         """
         self._enabled = enabled_strategies or ["rule_based", "llm_judge", "retrieval_diff"]
         self._judge_model = judge_model
         self._judge_endpoint = judge_endpoint
+        self._judge_provider = judge_provider
         self._rag_endpoint = rag_endpoint
         self._seen_keys: set[str] = set()
 
@@ -134,10 +141,11 @@ class PairBuilder:
         用 Qwen2.5-7B-Instruct 对比"RAG 端答案"与"专家答案"，
         输出 pairwise preference。
 
-        需要 judge_endpoint 可用；若不可用则跳过。
+        优先使用 judge_provider（LLMProvider），回退到 judge_endpoint 原始调用。
+        两者均不可用时跳过。
         """
-        if not self._judge_endpoint:
-            logger.info("LLM-as-Judge endpoint not configured, skipping strategy B")
+        if not self._judge_provider and not self._judge_endpoint:
+            logger.info("LLM-as-Judge not configured (no provider or endpoint), skipping strategy B")
             return
 
         for rec in records:
@@ -169,7 +177,7 @@ class PairBuilder:
                 rejected=rejected,
                 source="llm_judge",
                 policy_id=rec.get("policy_id"),
-                judge_model=self._judge_model,
+                judge_model=self._judge_provider.model if self._judge_provider else self._judge_model,
                 judge_score_chosen=chosen_score,
                 judge_score_rejected=rejected_score,
             )
@@ -181,6 +189,9 @@ class PairBuilder:
     ) -> tuple[str, float, float]:
         """调用 Judge 模型获取 pairwise preference。
 
+        优先使用 LLMProvider（支持第三方 API + 本地模型），
+        回退到原始 HTTP 调用（仅本地无认证模型，向后兼容）。
+
         Returns:
             (winner, score_a, score_b) 其中 winner ∈ {"A", "B", "TIE"}。
         """
@@ -188,6 +199,30 @@ class PairBuilder:
             prompt=prompt, candidate_a=candidate_a, candidate_b=candidate_b
         )
 
+        # 通过 LLMProvider 调用（支持 API key + JSON 提取）
+        if self._judge_provider:
+            try:
+                content = self._judge_provider.chat(
+                    messages=[{"role": "user", "content": judge_prompt}],
+                    temperature=0.0,
+                    max_tokens=512,
+                    response_format={"type": "json_object"},
+                )
+                # 清理 thinking tags / code fences 等杂质
+                from llm.llm_provider import LLMProvider
+
+                content = LLMProvider.extract_json(content)
+                result = json.loads(content)
+                return (
+                    result.get("winner", "TIE"),
+                    float(result.get("score_a", 0.5)),
+                    float(result.get("score_b", 0.5)),
+                )
+            except Exception as e:
+                logger.warning("Judge (LLMProvider) call failed: %s", e)
+                return "TIE", 0.5, 0.5
+
+        # 旧路径：原始 HTTP 调用（向后兼容，无 API key）
         try:
             import requests
 

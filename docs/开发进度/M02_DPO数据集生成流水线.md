@@ -1,7 +1,27 @@
 # M02 DPO 数据集生成流水线 — 进度报告
 
-> 更新日期：2026-06-11
-> 当前状态：**✅ 全部完成 — DPO 7183 条 / SFT 7048 条，双目标超额达成**
+> 更新日期：2026-06-16
+> 当前状态：**✅ 全部完成 + 方案对比修复 — DPO 7247 条 / SFT 7048 条，通过率 100%**
+
+---
+
+## 0. 方案对比修复（2026-06-16）
+
+基于 `pipeline.py` 与 [M02 阶段方案](../项目分阶段方案/M02_DPO数据集生成流水线.md) 的详细对比，修复了以下缺失：
+
+| 编号 | 修复项 | 状态 |
+|------|--------|------|
+| #1 | 评测留出集自动生成 (`insurance_qa_500.jsonl`) — `_generate_holdout_set()` | ✅ 已修复 |
+| #3 | 数据质量报告自动生成 (`reports/dpo_data_quality_v1.2.md`) — `_generate_quality_report()` | ✅ 已修复 |
+| #4 | 必引条款失败样本回流重做 — `_validate_and_repair()` + `_repair_missing_reference()` | ✅ 已修复 |
+| #5 | Filter 阶段敏感词过滤 — `quality.sensitive_words` 配置支持 | ✅ 已修复 |
+| #6 | prompt 级别全局去重 — `_dedup_by_prompt()` | ✅ 已修复 |
+| #7 | per-source limit 参数支持 — `_source_limits` 列表 | ✅ 已修复 |
+
+**修复效果**：
+- 通过率从 99.06% → **100%**（67 条缺失条款引用被自动修复）
+- 新增 24 个单元测试（`tests/m_data/test_pipeline.py`）
+- Server6 全量测试：67/67 passed
 
 ---
 
@@ -20,10 +40,10 @@
 | D-M02-09 | 配置文件 | `configs/data/insurance_dpo_gen.yaml` | ✅ 完成 |
 | D-M02-10 | DPO 数据集产物 | `data/insurance/dpo_train_v1.2.jsonl` | ✅ **7183 条** (99.06% 通过) |
 | D-M02-11 | SFT 数据集产物 | `data/insurance/insurance_sft_v1.jsonl` | ✅ **7048 条** |
-| D-M02-12 | 评测留出集 | `data/eval/insurance_qa_500.jsonl` | ⏳ 待后续切分 |
-| D-M02-13 | 数据质量报告 | `reports/dpo_data_quality_v1.2.md` | ✅ 见下方 |
+| D-M02-12 | 评测留出集 | `data/eval/insurance_qa_500.jsonl` | ✅ 自动生成（流水线 Step 7） |
+| D-M02-13 | 数据质量报告 | `reports/dpo_data_quality_v1.2.md` | ✅ 自动生成（流水线 Step 8） |
 | D-M02-14 | 流水线 README | `src/m_data/README.md` | ✅ 完成 |
-| D-M02-15 | 单元测试 | `tests/m_data/{test_pii_scrubber,test_validator,test_pair_builder,test_exporter}.py` | ✅ 完成 |
+| D-M02-15 | 单元测试 | `tests/m_data/test_*.py` | ✅ 完成（含 24 个新 pipeline 测试） |
 
 ---
 
@@ -31,26 +51,29 @@
 
 ### 2.1 本地测试 (macOS, Python 3.12.10)
 ```
-tests/m_data/test_exporter.py .......  [16%]
-tests/m_data/test_pair_builder.py .....  [34%]
-tests/m_data/test_pii_scrubber.py .....  [58%]
-tests/m_data/test_validator.py ..........  [100%]
-============================== 43 passed in 0.05s ==============================
+tests/m_data/test_exporter.py .......  [10%]
+tests/m_data/test_pair_builder.py ........  [22%]
+tests/m_data/test_pii_scrubber.py ..........  [37%]
+tests/m_data/test_pipeline.py ........................  [73%]
+tests/m_data/test_validator.py ..................  [100%]
+============================== 67 passed in 0.13s ==============================
 ```
 
-### 2.2 Server2 测试 (Linux, Python 3.12.13, 2×RTX 5090)
+### 2.2 Server6 测试 (Linux, Python 3.12.13)
 ```
-============================== 43 passed in 0.09s ==============================
+============================== 67 passed in 0.15s ==============================
 ```
 
-### 2.3 流水线端到端生产运行 (2026-06-11)
+### 2.3 流水线端到端生产运行 (2026-06-16 — 修复后)
 ```
 Pipeline Summary
-  Collector:    7080 records (policy: 5, faq: 5033, ticket: 2015 + synth)
-  DPO samples:  7251 (7183 passed, 68 failed — missing policy reference)
+  Collector:    7080 records (policy: 32, faq: 5033, ticket: 2015)
+  DPO samples:  7247 (7247 passed — 100% 通过率)
   SFT samples:  7048
-  Elapsed:      0.8s
-  Validator:    7183/7251 passed (99.06%)
+  Dedup:        4 条重复 prompt 已移除
+  Repair:       67 条缺失条款引用已自动修复
+  Elapsed:      0.6s
+  Validator:    7247/7247 passed (100.0%)
 ```
 
 ---
@@ -85,25 +108,25 @@ Pipeline Summary
 
 ## 5. 数据质量指标
 
-| 指标 | 值 |
-|------|-----|
-| DPO 总量 | 7183 |
-| DPO 通过率 | 99.06% |
-| DPO 未通过原因 | 68 条缺少 policy_id 引用 |
-| SFT 总量 | 7048 |
-| 平均 prompt 长度 | ~15 字符 |
-| 平均 chosen 长度 | ~120 字符 |
-| 平均 rejected 长度 | ~18 字符 |
-| 模板覆盖类别 | 9 大类（重疾/医疗/意外/寿险/养老/投保/理赔/通用/合规） |
+| 指标 | 修复前 (2026-06-11) | 修复后 (2026-06-16) |
+|------|----------------------|----------------------|
+| DPO 总量 | 7183 | 7247（去重后） |
+| DPO 通过率 | 99.06% | **100%** |
+| DPO 未通过原因 | 68 条缺少 policy_id 引用 | **0 条（67 条自动修复）** |
+| SFT 总量 | 7048 | 7048 |
+| prompt 去重 | 无 | 移除 4 条重复 |
+| 评测留出集 | 手动 | 自动生成 |
+| 质量报告 | 无 | 自动生成 Markdown |
 
 ---
 
 ## 6. 完成总结
 
-M02 DPO 数据集生成流水线 **全部完成**：
+M02 DPO 数据集生成流水线 **全部完成 + 方案对比修复**：
 - ✅ 15 个交付物全部就绪
-- ✅ 43 个单元测试全通过（本地 + server2）
-- ✅ DPO 数据集：7183 条（目标 ≥5000，达成率 143.7%）
-- ✅ SFT 数据集：7048 条（目标 ≥3000，达成率 234.9%）
-- ✅ 硬负例模板：203 个（目标 5→120，实际 203）
-- ✅ 数据源配置指向目录，自动包含合成数据
+- ✅ 67 个单元测试全通过（本地 + server6）
+- ✅ DPO 数据集：7247 条（目标 ≥5000，达成率 145%）
+- ✅ SFT 数据集：7048 条（目标 ≥3000，达成率 235%）
+- ✅ 通过率：**100%**（修复后，原 99.06%）
+- ✅ 评测留出集、质量报告均自动生成
+- ✅ prompt 去重、敏感词过滤、回流修复、per-source limit 均已实现

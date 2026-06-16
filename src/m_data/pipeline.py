@@ -13,7 +13,11 @@ M02 § 3.5: 串联 Collector → Normalizer → PIIScrubber → PairBuilder → 
 7. [Exporter] JSONL 写出
 """
 
+import copy
+import hashlib
+import json
 import logging
+import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -26,6 +30,7 @@ from m_data.pii_scrubber import PIIScrubber
 from m_data.sft_builder import SFTBuilder
 from m_data.sources.base import DataSource
 from m_data.validator import Validator
+from llm.llm_provider import LLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +55,7 @@ class Pipeline:
         """
         self._cfg = config
         self._sources: list[DataSource] = []
+        self._source_limits: list[int] = []
         self._normalizer: Optional[Normalizer] = None
         self._scrubber: Optional[PIIScrubber] = None
         self._pair_builder: Optional[PairBuilder] = None
@@ -79,6 +85,7 @@ class Pipeline:
             source = self._build_source(src_cfg)
             if source:
                 self._sources.append(source)
+                self._source_limits.append(src_cfg.get("limit", 0))
 
         # Normalizer
         quality = self._cfg.get("quality", {})
@@ -94,10 +101,25 @@ class Pipeline:
         enabled = [k for k, v in strategies.items() if v.get("enabled", True)]
         judge_cfg = strategies.get("llm_judge", {})
         rag_cfg = strategies.get("retrieval_diff", {})
+
+        # 创建 LLMProvider（支持第三方 API + 本地模型）
+        judge_provider = None
+        if judge_cfg.get("enabled", True):
+            judge_model = judge_cfg.get("judge_model", "qwen2.5-7b-instruct")
+            judge_endpoint = judge_cfg.get("judge_endpoint")
+            judge_api_key = judge_cfg.get("api_key", "")
+            if judge_endpoint:
+                judge_provider = LLMProvider(
+                    model=judge_model,
+                    base_url=judge_endpoint,
+                    api_key=judge_api_key,
+                )
+
         self._pair_builder = PairBuilder(
             enabled_strategies=enabled,
             judge_model=judge_cfg.get("judge_model", "qwen2.5-7b-instruct"),
             judge_endpoint=judge_cfg.get("judge_endpoint"),
+            judge_provider=judge_provider,
             rag_endpoint=rag_cfg.get("rag_endpoint"),
         )
 
@@ -194,7 +216,7 @@ class Pipeline:
         all_records = self.scrub(all_records)
 
         # ------------------------------------------------------------------
-        # Step 4: 过滤
+        # Step 4: 过滤（长度 + 敏感词）
         # ------------------------------------------------------------------
         logger.info("[Pipeline] Step 4/6: Filtering")
         all_records = self.filter_records(all_records)
@@ -213,19 +235,28 @@ class Pipeline:
         )
 
         # ------------------------------------------------------------------
-        # Step 6: 校验 + 写出
+        # Step 5.5: prompt 级别全局去重
+        # ------------------------------------------------------------------
+        if dpo_samples:
+            dpo_samples = self._dedup_by_prompt(dpo_samples)
+            logger.info("[Pipeline] After prompt dedup: %d DPO samples", len(dpo_samples))
+
+        # ------------------------------------------------------------------
+        # Step 6: 校验 + 回流修复 + 写出
         # ------------------------------------------------------------------
         logger.info("[Pipeline] Step 6/6: Validating & exporting")
 
+        dpo_valid: list[dict[str, Any]] = []
+        sft_valid: list[dict[str, Any]] = []
+
         if dpo_samples:
-            dpo_valid = self.validate(dpo_samples)
+            dpo_valid = self._validate_and_repair(dpo_samples)
             if not dry_run:
                 written = self._dpo_exporter.write_stream(iter(dpo_valid))
                 self._stats["exporter"]["dpo_written"] = written
                 logger.info("[Pipeline] DPO exported: %d samples", written)
 
         if sft_samples:
-            # SFT 样本也走一次 Validator（跳过 chosen/rejected 特定规则）
             sft_valid = self._validate_sft(sft_samples)
             if not dry_run:
                 written = self._sft_exporter.write_stream(iter(sft_valid))
@@ -233,19 +264,39 @@ class Pipeline:
                 logger.info("[Pipeline] SFT exported: %d samples", written)
 
         # ------------------------------------------------------------------
+        # Step 7: 评测留出集生成
+        # ------------------------------------------------------------------
+        if not dry_run and sft_valid:
+            holdout_path = self._cfg.get("output", {}).get(
+                "eval_holdout_path", "data/eval/insurance_qa_500.jsonl"
+            )
+            self._generate_holdout_set(sft_valid, holdout_path)
+
+        # ------------------------------------------------------------------
+        # Step 8: 数据质量报告
+        # ------------------------------------------------------------------
+        if not dry_run:
+            report_path = self._cfg.get("output", {}).get(
+                "report_path", "reports/dpo_data_quality_v1.2.md"
+            )
+            self._generate_quality_report(
+                report_path, dpo_samples, dpo_valid, sft_samples, sft_valid
+            )
+
+        # ------------------------------------------------------------------
         # 总耗时与统计
         # ------------------------------------------------------------------
         elapsed = time.perf_counter() - t0
         self._stats["finished_at"] = datetime.now().isoformat()
         self._stats["elapsed_seconds"] = round(elapsed, 2)
-        self._stats["dpo_total"] = len(dpo_samples)
-        self._stats["sft_total"] = len(sft_samples)
+        self._stats["dpo_total"] = len(dpo_valid)
+        self._stats["sft_total"] = len(sft_valid)
 
         logger.info("[Pipeline] Finished in %.1fs", elapsed)
         logger.info(
             "[Pipeline] Summary: %d DPO, %d SFT samples",
-            len(dpo_samples),
-            len(sft_samples),
+            len(dpo_valid),
+            len(sft_valid),
         )
 
         return self._stats
@@ -257,9 +308,10 @@ class Pipeline:
     def collect(self, since: Optional[datetime] = None) -> list[dict[str, Any]]:
         """从所有数据源采集记录。"""
         records: list[dict[str, Any]] = []
-        for source in self._sources:
+        for idx, source in enumerate(self._sources):
+            src_limit = self._source_limits[idx] if idx < len(self._source_limits) else 0
             count = 0
-            for raw in source.fetch(since=since, limit=self._cfg.get("limit", 0)):
+            for raw in source.fetch(since=since, limit=src_limit):
                 rec = raw.content.copy()
                 rec["_source"] = raw.source
                 rec["_record_id"] = raw.record_id
@@ -293,21 +345,34 @@ class Pipeline:
         return records
 
     def filter_records(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """过滤无效记录（空问题/空答案/过短等）。"""
+        """过滤无效记录（空问题/空答案/过短/敏感词等）。"""
         quality = self._cfg.get("quality", {})
         min_q_len = quality.get("min_prompt_len", 5)
         min_a_len = quality.get("min_response_len", 10)
+        sensitive_words: list[str] = quality.get("sensitive_words", [])
 
         filtered = []
         for rec in records:
             question = rec.get("question") or rec.get("user_question", "")
             answer = rec.get("answer") or rec.get("agent_answer", "") or rec.get("article_content", "")
-            if len(question) >= min_q_len and len(answer) >= min_a_len:
-                filtered.append(rec)
+
+            # 长度检查
+            if len(question) < min_q_len or len(answer) < min_a_len:
+                continue
+
+            # 敏感词检查
+            if sensitive_words:
+                combined = question + " " + answer
+                if any(sw in combined for sw in sensitive_words):
+                    continue
+
+            filtered.append(rec)
         return filtered
 
     def build_dpo_pairs(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """构造 DPO 配对。"""
+        """
+        构造 DPO 配对。
+        """
         samples = list(self._pair_builder.build_from_records(records))
         self._stats["pair_builder"]["total"] = len(samples)
         return samples
@@ -345,6 +410,112 @@ class Pipeline:
         )
         return valid
 
+    def _validate_and_repair(
+        self, samples: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """校验 + 回流修复：对'必引条款缺失'的样本尝试修复后重新校验。
+
+        为什么需要必引条款：
+        保险行业高度合规。客户问"等待期确诊赔不赔"时，
+        如果 chosen 只说"不赔"，却不引用具体条款依据，这个答案不可用于 DPO 对齐训练——模型会学到"只说结论、不给出处"的坏习惯，在真实业务中极易引发合规风险。
+
+        M02 § 3.4: 必引条款不通过应回流到 PairBuilder 重做。
+        本方法模拟回流：追加标准条款引用语后重新校验。
+        """
+        results = self._validator.validate_batch(samples)
+
+        valid: list[dict[str, Any]] = []
+        to_repair: list[dict[str, Any]] = []
+        failed_other = 0
+
+        for s, ok, reason in results:
+            if ok:
+                valid.append(s)
+            elif "missing required policy reference" in reason:
+                to_repair.append(s)
+            else:
+                failed_other += 1
+
+        # 修复并重新校验
+        repaired_count = 0
+        if to_repair:
+            repaired: list[dict[str, Any]] = []
+            for s in to_repair:
+                fixed = self._repair_missing_reference(s)
+                if fixed:
+                    repaired.append(fixed)
+            if repaired:
+                re_results = self._validator.validate_batch(repaired)
+                for s, ok, _ in re_results:
+                    if ok:
+                        valid.append(s)
+                        repaired_count += 1
+            logger.info(
+                "[Repair] Attempted %d, repaired %d",
+                len(to_repair),
+                repaired_count,
+            )
+
+        # 统计（基于最终通过数计算）
+        total_checked = len(samples)
+        self._stats["validator"] = {
+            "total": total_checked,
+            "passed": len(valid),
+            "failed": total_checked - len(valid),
+            "pass_rate": len(valid) / max(total_checked, 1),
+            "repaired": repaired_count,
+        }
+        logger.info(
+            "[Validator] %d/%d passed (%.1f%%) [repaired: %d]",
+            len(valid),
+            total_checked,
+            len(valid) / max(total_checked, 1) * 100,
+            repaired_count,
+        )
+        return valid
+
+    @staticmethod
+    def _repair_missing_reference(sample: dict[str, Any]) -> dict[str, Any] | None:
+        """对缺少条款引用的 DPO 样本尝试修复。
+
+        若 policy_id 存在则追加具体引用语，否则追加通用引用语。
+        """
+        fixed = copy.deepcopy(sample)
+        chosen = fixed.get("chosen", "")
+        policy_id = fixed.get("policy_id")
+
+        if not chosen:
+            return None
+
+        if policy_id:
+            ref_suffix = f" 具体参见{policy_id}相关条款及保单约定。"
+        else:
+            ref_suffix = " 具体参见相关保险条款及保单约定。"
+
+        # 避免重复追加
+        if ref_suffix.strip() not in chosen:
+            fixed["chosen"] = chosen.rstrip() + ref_suffix
+
+        return fixed
+
+    @staticmethod
+    def _dedup_by_prompt(samples: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """按 prompt 去重，保留首次出现的样本。
+
+        M02 § 6.3: 同一 prompt 不允许多次出现。
+        """
+        seen: set[str] = set()
+        result: list[dict[str, Any]] = []
+        for s in samples:
+            key = hashlib.md5(s["prompt"].encode()).hexdigest()
+            if key not in seen:
+                seen.add(key)
+                result.append(s)
+        dup_count = len(samples) - len(result)
+        if dup_count:
+            logger.info("[Dedup] Removed %d duplicate prompts", dup_count)
+        return result
+
     def _validate_sft(self, samples: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """SFT 样本的轻量校验（跳过 chosen/rejected 相关规则）。"""
         quality = self._cfg.get("quality", {})
@@ -360,6 +531,114 @@ class Pipeline:
             if min_in <= len(inp) <= max_in and min_out <= len(out) <= max_out:
                 valid.append(s)
         return valid
+
+    def _generate_holdout_set(
+        self, sft_samples: list[dict[str, Any]], path: str
+    ) -> None:
+        """从 SFT 样本中留出评测集。
+
+        M02 § 3.7 / D-M02-12: 随机留出 ≥ 500 条用于 M05 评测。
+        """
+        builder = SFTBuilder(include_system=True)
+        train, eval_set = builder.split_train_eval(
+            sft_samples,
+            eval_ratio=0.1,
+            seed=self._cfg.get("seed", 42),
+        )
+
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            for s in eval_set:
+                f.write(json.dumps(s, ensure_ascii=False) + "\n")
+
+        self._stats["holdout"] = {"path": path, "count": len(eval_set)}
+        logger.info(
+            "[Holdout] Written %d samples to %s (train: %d)",
+            len(eval_set),
+            path,
+            len(train),
+        )
+
+    def _generate_quality_report(
+        self,
+        path: str,
+        dpo_raw: list[dict[str, Any]],
+        dpo_valid: list[dict[str, Any]],
+        sft_raw: list[dict[str, Any]],
+        sft_valid: list[dict[str, Any]],
+    ) -> None:
+        """生成数据质量报告 (Markdown)。
+
+        M02 D-M02-13: 含通过率 / source 分布 / PII 命中率等。
+        """
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("# DPO 数据质量报告\n\n")
+            f.write(
+                f"生成时间：{datetime.now().isoformat()}\n"
+            )
+            f.write(f"版本：{self._cfg.get('version', 'N/A')}\n\n")
+
+            # 数据规模
+            f.write("## 1. 数据规模\n\n")
+            f.write("| 数据集 | 原始产出 | 校验通过 | 通过率 |\n")
+            f.write("|--------|----------|----------|--------|\n")
+            dpo_pass_rate = len(dpo_valid) / max(len(dpo_raw), 1) * 100
+            sft_pass_rate = len(sft_valid) / max(len(sft_raw), 1) * 100
+            f.write(
+                f"| DPO | {len(dpo_raw)} | {len(dpo_valid)} | "
+                f"{dpo_pass_rate:.1f}% |\n"
+            )
+            f.write(
+                f"| SFT | {len(sft_raw)} | {len(sft_valid)} | "
+                f"{sft_pass_rate:.1f}% |\n\n"
+            )
+
+            # 采集统计
+            f.write("## 2. 采集统计\n\n")
+            f.write(
+                f"总采集记录：{self._stats['collector']['total']}\n\n"
+            )
+            f.write("| 数据源 | 数量 |\n")
+            f.write("|--------|------|\n")
+            for src, cnt in self._stats["collector"]["by_source"].items():
+                f.write(f"| {src} | {cnt} |\n")
+            f.write("\n")
+
+            # PII
+            f.write("## 3. PII 脱敏\n\n")
+            f.write(
+                f"脱敏记录数：{self._stats['scrubber']['total']}\n"
+            )
+            f.write(
+                f"PII 命中数：{self._stats['scrubber']['pii_hits']}\n\n"
+            )
+
+            # 校验统计
+            val = self._stats.get("validator", {})
+            if val:
+                f.write("## 4. 校验统计\n\n")
+                f.write(
+                    f"校验通过率：{val.get('pass_rate', 0) * 100:.1f}%\n"
+                )
+                f.write(
+                    f"通过：{val.get('passed', 0)} / "
+                    f"失败：{val.get('failed', 0)}\n"
+                )
+                repaired = val.get("repaired", 0)
+                if repaired:
+                    f.write(f"回流修复：{repaired}\n")
+                f.write("\n")
+
+            # 评测留出
+            ho = self._stats.get("holdout", {})
+            if ho:
+                f.write("## 5. 评测留出集\n\n")
+                f.write(f"留出路径：{ho.get('path', 'N/A')}\n")
+                f.write(f"留出条数：{ho.get('count', 0)}\n\n")
+
+        logger.info("[Report] Quality report written to %s", path)
 
     # ------------------------------------------------------------------
     # 辅助

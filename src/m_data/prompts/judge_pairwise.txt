@@ -6,4 +6,4 @@
 
 【答案 B】{candidate_b}
 
-请输出严格 JSON：{"winner": "A" | "B" | "TIE", "score_a": 0~1, "score_b": 0~1, "reason": "..."}
+请输出严格 JSON：{{"winner": "A" | "B" | "TIE", "score_a": 0~1, "score_b": 0~1, "reason": "..."}}
