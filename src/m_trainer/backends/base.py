@@ -31,6 +31,7 @@ class TrainerConfig:
         world_size: 总 GPU 数（自动推断）
         deepspeed_config: DeepSpeed ZeRO 配置字典（仅 deepspeed 后端使用）
         fsdp_config: FSDP 配置字典（仅 fsdp 后端使用）
+        megatron_config: Megatron 配置字典（仅 megatron 后端使用）
     """
 
     distributed_backend: str = "deepspeed"
@@ -44,6 +45,7 @@ class TrainerConfig:
     world_size: int = 1
     deepspeed_config: dict[str, Any] = field(default_factory=dict)
     fsdp_config: dict[str, Any] = field(default_factory=dict)
+    megatron_config: dict[str, Any] = field(default_factory=dict)
 
 
 class DistributedBackend(ABC):
@@ -56,7 +58,7 @@ class DistributedBackend(ABC):
         此时 optimizer 参数传入 None，返回的 wrapped_optimizer 实际为 DeepSpeedEngine。
       - FSDP：由 backend 内部创建并通过 fully_shard 与 model 绑定。
       - accelerate：由 accelerator.prepare 统一包装。
-      - Megatron：当前 1.5B 模型触发 NotImplementedError。
+      - Megatron：使用 megatron.core 的 Tensor Parallelism 进行模型并行。
     """
 
     @abstractmethod

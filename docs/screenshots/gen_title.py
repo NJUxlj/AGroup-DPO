@@ -32,13 +32,17 @@ draw.text((cx + 3, 52 + 3), "AGroup DPO", fill=shadow, font=font_title, anchor="
 draw.text((cx, 52), "AGroup DPO", fill=orange, font=font_title, anchor="mm")
 
 # Decorative lines on both sides of subtitle
-line_y = 115
+# 设置装饰线的垂直位置（Y轴坐标）
+line_y = 116
+# 设置装饰线的颜色，格式为(R, G, B, Alpha)，这里是一个带一定透明度的橙色
 line_color = (255, 120, 0, 180)
-draw.rectangle([(160, line_y), (300, line_y + 3)], fill=line_color)
-draw.rectangle([(500, line_y), (640, line_y + 3)], fill=line_color)
+# 绘制左侧的装饰矩形线：左上角坐标为 (160, line_y)，右下角坐标为 (300, line_y + 6)
+draw.rectangle([(160, line_y), (300, line_y + 5)], fill=line_color)
+# 绘制右侧的装饰矩形线：左上角坐标为 (500, line_y)，右下角坐标为 (640, line_y + 6)，与左侧对称
+draw.rectangle([(500, line_y), (640, line_y + 5)], fill=line_color)
 
 # Subtitle
-draw.text((cx, line_y - 10), "保险场景  ·  偏好对齐  ·  工程实践", fill=(100, 100, 100), font=font_sub, anchor="mm")
+draw.text((cx, line_y - 16), "保险场景  ·  偏好对齐  ·  工程实践", fill=(100, 100, 100), font=font_sub, anchor="mm")
 
 img.save("title.png")
 print(f"Saved title.png ({W}x{H})")

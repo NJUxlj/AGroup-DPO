@@ -153,6 +153,59 @@ copaw-dpo evaluate \
 
 校验规则：prompt 长度、chosen/rejected 长度、PII 检测、条款引用检查、相似度去重
 
+
+
+### 条款引用修复 (PolicyStore)
+
+Validator 在检查到 chosen 文本缺少具体条款引用时，不是简单追加一句「具体参见相关保险条款及保单约定」，而是通过 **PolicyStore** 从原始保险条款中检索真实条款原文注入回复。
+
+```
+[Validator 检查] → chosen 缺少条款引用?
+        │
+   Yes  │  policy_id 存在 + PolicyStore 可用
+        ▼
+┌──────────────────────────────────────────┐
+│ ① Milvus 混合检索（优先）                 │
+│   ├─ prompt 向量化 (BAAI/bge-small-zh-v1.5)│
+│   ├─ ANN 检索 filter by policy_id          │
+│   ├─ CLAIM_KEYWORDS 关键词重叠重排序        │
+│   └─ 追加: "依据POL-CRIT-001：第2.1条       │
+│      （等待期）：自本合同生效日起90日内..."  │
+├──────────────────────────────────────────┤
+│ ② ID 兜底（无 Milvus 但有 policy_id）      │
+│   └─ "具体参见POL-CRIT-001相关条款..."      │
+├──────────────────────────────────────────┤
+│ ③ 通用兜底（无 policy_id）                │
+│   └─ "具体参见相关保险条款及保单约定。"      │
+└──────────────────────────────────────────┘
+```
+
+**技术选型：**
+
+| 组件 | 选型 | 说明 |
+|------|------|------|
+| 向量数据库 | Milvus Lite (嵌入式) | 无需部署服务端，文件级本地存储 |
+| Embedding | BAAI/bge-small-zh-v1.5 | 中文语义检索优化，512 维，轻量高效 |
+| 索引方式 | IVF_FLAT (nlist=64) | 倒排文件 + 平坦存储，中小规模精度最优 |
+| 混合检索 | 65% 向量 + 35% 关键词 | ANN 粗筛 → 保险关键词重排序 |
+
+**实测结果 (PolicyStore 全量索引 + 全量 DPO 数据生成)：**
+
+```
+PolicyStore 初始化: 67.4s
+  ├─ 嵌入模型下载: BAAI/bge-small-zh-v1.5
+  ├─ 索引文章数:   32 articles (5 份保单)
+  └─ 混合检索:     top-1 语义+关键词匹配 score ≥ 0.60
+
+Pipeline 产出:
+  DPO 样本:    29,028
+  SFT 样本:    28,240
+  Validator:   7,247/7,247 passed (100.0%)
+  条款引用修复: 2 次真实条款注入 + 78 次回流修复 （只有回流时才会用到 PolicyStore）
+```
+
+
+
 ---
 
 ## 训练怎么跑的
@@ -191,7 +244,8 @@ AGroup-DPO/
 │   │   ├── pipeline.py     #   流水线编排
 │   │   ├── pair_builder.py #   chosen/rejected 配对
 │   │   ├── validator.py    #   规则校验
-│   │   └── pii_scrubber.py #   PII 脱敏
+│   │   ├── pii_scrubber.py  #   PII 脱敏
+│   │   └── policy_store.py  #   Milvus 条款检索修复
 │   ├── m_trainer/          # 分布式 Trainer
 │   │   └── backends/       #   DeepSpeed/FSDP/Megatron/accelerate
 │   ├── m_infer/            # 推理后端

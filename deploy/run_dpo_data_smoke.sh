@@ -103,8 +103,8 @@ python -c "import pymilvus; import sentence_transformers" 2>/dev/null \
     || MISSING_PS=true
 
 if [[ "${MISSING_PS}" == "true" ]]; then
-    log "安装 pymilvus (无缓存, 可见进度)..."
-    pip install --no-cache-dir "pymilvus>=2.4.0" || die "pymilvus 安装失败"
+    log "安装 pymilvus + milvus-lite (无缓存, 可见进度)..."
+    pip install --no-cache-dir "pymilvus[milvus_lite]>=2.4.0" || die "pymilvus 安装失败"
     log "安装 sentence-transformers (包较大, 约 2GB, 耐心等待)..."
     pip install --no-cache-dir "sentence-transformers>=2.7.0" || die "sentence-transformers 安装失败"
 fi
@@ -126,7 +126,7 @@ log "==== 步骤 4: 运行 DPO 数据合成全量集成测试 ===="
 log "测试脚本: tests/m_data/test_dpo_full_pipeline.py"
 log "============================================"
 
-PYTHONPATH="${PROJECT_ROOT}/src:${PYTHONPATH}" \
+PYTHONPATH="${PROJECT_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}" \
     python "${PROJECT_ROOT}/tests/m_data/test_dpo_full_pipeline.py"
 EXIT_CODE=$?
 

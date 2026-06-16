@@ -150,6 +150,12 @@ class DeepSpeedBackend(DistributedBackend):
         return dataloader
 
     def barrier(self) -> None:
+        """分布式同步屏障。
+
+        阻塞当前进程，直到所有参与训练的分布式进程（GPU/节点）均到达此处。
+        常用于模型保存、Checkpoint 加载或全局状态同步前，确保各进程步调一致，
+        避免并发写入冲突、数据竞争或日志乱序。
+        """
         if torch.distributed.is_initialized():
             torch.distributed.barrier()
 

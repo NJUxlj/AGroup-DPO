@@ -1,13 +1,32 @@
 # Megatron-LM 后端配置模板 (M04)
-# 接口预留。当前 1.5B 模型触发 NotImplementedError。
-# 模型规模扩展到 7B+ 后启用。
+#
+# 基于 NVIDIA Megatron-LM 的 Tensor Parallelism 实现模型并行训练。
+# 支持 GPT2 / Qwen2.5 / Qwen3 模型的自动检测与层转换。
+#
+# 使用方式：
+#   1. 安装依赖: pip install megatron-core
+#   2. 在训练配置中将 trainer.distributed_backend 设为 megatron
+#   3. 根据 GPU 数量调整 tensor_model_parallel_size
+#
+# 典型场景：
+#   - 单卡训练: tensor_model_parallel_size=1（TP 不启用，退化为 DDP）
+#   - 2 卡训练: tensor_model_parallel_size=2（每卡持有 1/2 层权重）
+#   - 4 卡训练: tensor_model_parallel_size=4
 
 trainer:
-  distributed_backend: megatron   # 当前会触发 NotImplementedError
+  distributed_backend: megatron
+  learning_rate: 1e-4
+  per_device_batch_size: 2
+  gradient_accumulation_steps: 8
+  bf16: true
+  seed: 42
 
 megatron:
-  tensor_model_parallel_size: 1   # 7B+ 时调整为 2
-  pipeline_model_parallel_size: 1
-  num_layers: 28                  # Qwen2.5-1.5B: 28 layers
-  hidden_size: 1536
-  num_attention_heads: 12
+  tensor_model_parallel_size: 2       # 张量并行度（≦ GPU 数量）
+  pipeline_model_parallel_size: 1      # 流水线并行度（当前仅支持 1）
+  adam_betas: [0.9, 0.999]            # AdamW β 参数
+  weight_decay: 0.0                    # 权重衰减
+
+# 模型架构参数（自动从 model.config 读取，以下为参考值）
+# Qwen2.5-1.5B: hidden_size=1536, num_attention_heads=12, num_layers=28
+# GPT2:         hidden_size=768,  num_attention_heads=12, num_layers=12

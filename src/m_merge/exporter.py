@@ -1,4 +1,5 @@
-"""LoRA 与基座合并导出 (FR-06)
+"""
+LoRA 与基座合并导出 (FR-06)
 
 合并公式（PEFT 库 merge_and_unload 实现）：
 

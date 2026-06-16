@@ -1,4 +1,5 @@
-"""PyTorch FSDP 后端适配器 (FR-07)
+"""
+PyTorch FSDP 后端适配器 (FR-07)
 
 基于 torch.distributed.fsdp.fully_shard (PyTorch 2.4+) 实现，
 作为 DeepSpeed 在 PyTorch 原生派系下的等价替代。
@@ -91,10 +92,12 @@ class FSDPBackend(DistributedBackend):
         return wrapped_model, wrapped_optimizer
 
     def wrap_model(self, model: nn.Module) -> nn.Module:
-        """使用 FSDP 包装模型。
+        """
+        使用 FSDP 包装模型。
 
         auto_wrap_policy 优先尝试 transformer_auto_wrap_policy，
         若模型中找不到已知的 Transformer block 类，则退化为 size_based_auto_wrap_policy。
+
         """
         if getattr(self, "_model", None) is not None and self._model is not None:
             return self._model
@@ -120,12 +123,21 @@ class FSDPBackend(DistributedBackend):
         )
 
         wrapped = FSDP(
+            # 待包装的模型实例，FSDP 将对其进行参数分片与分布式管理
             model,
+            # 自动分片策略：决定哪些子模块（如 Transformer Layer）作为独立的 FSDP 单元
             auto_wrap_policy=auto_wrap_policy,
+            # 分片策略：FULL_SHARD 表示在所有 rank 上分片模型参数、梯度和优化器状态，最大化显存效率
             sharding_strategy=ShardingStrategy.FULL_SHARD,
+            # 混合精度配置：设置参数、归约和缓冲区的计算/存储 dtype（此处统一为 bfloat16）
             mixed_precision=mixed_precision,
+            # 反向传播预取策略：BACKWARD_PRE 在反向传播时提前预取下一个层的全量参数，
+            # 将通信与计算重叠，减少等待时间
             backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
+            # CPU Offload 配置：offload_params=False 表示不将参数卸载到 CPU，
+            # 所有参数保留在 GPU 上以换取更高的训练速度
             cpu_offload=CPUOffload(offload_params=False),
+            # 指定 FSDP 管理的 CUDA 设备，通常为当前进程绑定的 GPU
             device_id=torch.cuda.current_device(),
         )
         return wrapped
