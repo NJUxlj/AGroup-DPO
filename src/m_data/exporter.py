@@ -5,12 +5,12 @@ M02 § 3.5: 将 DPO/SFT 样本写出为 JSONL 格式。
 """
 
 import json
-import logging
+from utils.logger import CustomLogger
 import os
 from pathlib import Path
 from typing import Any, Iterator
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 class Exporter:
@@ -41,9 +41,9 @@ class Exporter:
                     f.write(json.dumps(sample, ensure_ascii=False) + "\n")
                     written += 1
             self._count += written
-            logger.info("Exported %d samples to %s", written, self._output_path)
+            log.info("Exported %d samples to %s", written, self._output_path)
         except Exception as e:
-            logger.error("Failed to export to %s: %s", self._output_path, e)
+            log.error("Failed to export to %s: %s", self._output_path, e)
 
         # 双写到共享存储
         if self._shared_path and written > 0:
@@ -52,9 +52,9 @@ class Exporter:
                 with open(self._shared_path, "a", encoding="utf-8") as f:
                     for sample in samples:
                         f.write(json.dumps(sample, ensure_ascii=False) + "\n")
-                logger.info("Synced %d samples to %s", written, self._shared_path)
+                log.info("Synced %d samples to %s", written, self._shared_path)
             except Exception as e:
-                logger.warning("Failed to sync to shared path %s: %s", self._shared_path, e)
+                log.warning("Failed to sync to shared path %s: %s", self._shared_path, e)
 
         return written
 

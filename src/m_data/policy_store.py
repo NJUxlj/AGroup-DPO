@@ -53,15 +53,16 @@ Dependencies (optional, graceful degradation if missing):
 from __future__ import annotations
 
 import json
-import logging
 import os
 import re
 from pathlib import Path
 from typing import Any
 
+from utils.logger import CustomLogger
+
 from m_data.validator import CLAIM_KEYWORDS
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 # ------------------------------------------------------------------
 # Embedding model defaults (Chinese retrieval-optimised)
@@ -151,7 +152,7 @@ class PolicyStore:
             self._init_embedding()
             self._ensure_indexed()
             self._ready = True
-            logger.info(
+            log.info(
                 "PolicyStore ready: collection=%s, dim=%d, model=%s",
                 self._collection_name,
                 self._embedding_dim,
@@ -159,7 +160,7 @@ class PolicyStore:
             )
         except Exception as exc:
             self._init_error = str(exc)
-            logger.warning("PolicyStore init failed (will fall back to template repair): %s", exc)
+            log.warning("PolicyStore init failed (will fall back to template repair): %s", exc)
             self._ready = False
 
         return self._ready
@@ -178,14 +179,14 @@ class PolicyStore:
 
         if force and self._client.has_collection(self._collection_name):
             self._client.drop_collection(self._collection_name)
-            logger.info("Dropped existing collection '%s'", self._collection_name)
+            log.info("Dropped existing collection '%s'", self._collection_name)
 
         if not self._client.has_collection(self._collection_name):
             self._create_collection()
 
         articles = self._load_policy_articles()
         if not articles:
-            logger.warning("No policy articles found in %s", self._data_dir)
+            log.warning("No policy articles found in %s", self._data_dir)
             return 0
 
         # Batch embed & insert （每 32 条批一次，控制内存）
@@ -207,11 +208,11 @@ class PolicyStore:
                 })
             self._client.insert(collection_name=self._collection_name, data=rows)
             total += len(rows)
-            logger.debug("Indexed %d/%d articles", total, len(articles))
+            log.debug("Indexed %d/%d articles", total, len(articles))
 
         # Flush to disk
         self._client.flush(self._collection_name)
-        logger.info("PolicyStore indexed %d articles into '%s'", total, self._collection_name)
+        log.info("PolicyStore indexed %d articles into '%s'", total, self._collection_name)
         return total
 
     def search(
@@ -256,11 +257,11 @@ class PolicyStore:
                 output_fields=["policy_id", "article_id", "article_title", "article_content"],
             )
         except Exception as exc:
-            logger.warning("Milvus search failed for policy_id=%s: %s", policy_id, exc)
+            log.warning("Milvus search failed for policy_id=%s: %s", policy_id, exc)
             return []
 
         if not ann_results or not ann_results[0]:
-            logger.debug("No ANN results for policy_id=%s, prompt='%s'", policy_id, prompt)
+            log.debug("No ANN results for policy_id=%s, prompt='%s'", policy_id, prompt)
             return []
 
         # Step 3: keyword rerank
@@ -302,7 +303,7 @@ class PolicyStore:
 
         os.makedirs(os.path.dirname(self._milvus_path) or ".", exist_ok=True)
         self._client = MilvusClient(self._milvus_path)
-        logger.info("Milvus Lite connected: %s", self._milvus_path)
+        log.info("Milvus Lite connected: %s", self._milvus_path)
 
     def _init_embedding(self) -> None:
         """Load SentenceTransformer model."""
@@ -318,7 +319,7 @@ class PolicyStore:
         # Verify embedding dimension matches config
         actual_dim = self._model.get_sentence_embedding_dimension()
         if actual_dim != self._embedding_dim:
-            logger.warning(
+            log.warning(
                 "Embedding dim mismatch: config=%d, model=%d. Using model dim.",
                 self._embedding_dim,
                 actual_dim,
@@ -377,7 +378,7 @@ class PolicyStore:
             schema=schema,
             index_params=index_params,
         )
-        logger.info("Created Milvus collection '%s'", self._collection_name)
+        log.info("Created Milvus collection '%s'", self._collection_name)
 
     def _ensure_indexed(self) -> None:
         """Check if collection has data; if empty, trigger full index."""
@@ -388,7 +389,7 @@ class PolicyStore:
             row_count = 0
 
         if row_count == 0:
-            logger.info("Collection '%s' is empty, running full index...", self._collection_name)
+            log.info("Collection '%s' is empty, running full index...", self._collection_name)
             self.index_all()
 
     # ------------------------------------------------------------------
@@ -405,7 +406,7 @@ class PolicyStore:
         """
         articles: list[dict[str, Any]] = []
         if not self._data_dir.exists():
-            logger.warning("Policy data dir not found: %s", self._data_dir)
+            log.warning("Policy data dir not found: %s", self._data_dir)
             return articles
 
         for json_path in sorted(self._data_dir.rglob("*.json")):
@@ -416,7 +417,7 @@ class PolicyStore:
                 with open(json_path, encoding="utf-8") as f:
                     data = json.load(f)
             except (json.JSONDecodeError, OSError) as exc:
-                logger.warning("Failed to parse %s: %s", json_path, exc)
+                log.warning("Failed to parse %s: %s", json_path, exc)
                 continue
 
             policy_id = data.get("policy_id", json_path.stem)
@@ -434,7 +435,7 @@ class PolicyStore:
                     "source_file": str(json_path),
                 })
 
-        logger.info("Loaded %d articles from %s", len(articles), self._data_dir)
+        log.info("Loaded %d articles from %s", len(articles), self._data_dir)
         return articles
 
     # ------------------------------------------------------------------

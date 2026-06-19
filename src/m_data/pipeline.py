@@ -16,12 +16,13 @@ M02 § 3.5: 串联 Collector → Normalizer → PIIScrubber → PairBuilder → 
 import copy
 import hashlib
 import json
-import logging
 import os
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
+
+from utils.logger import CustomLogger
 
 from m_data.exporter import Exporter
 from m_data.normalizer import Normalizer
@@ -33,7 +34,7 @@ from m_data.sources.base import DataSource
 from m_data.validator import Validator
 from llm.llm_provider import LLMProvider
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 class Pipeline:
@@ -144,7 +145,7 @@ class Pipeline:
                 self._policy_store = PolicyStore(ps_cfg)
                 self._policy_store.ensure_ready()
             except Exception as e:
-                logger.warning("PolicyStore init failed, will use fallback repair: %s", e)
+                log.warning("PolicyStore init failed, will use fallback repair: %s", e)
                 self._policy_store = None
 
         # Exporter
@@ -165,7 +166,7 @@ class Pipeline:
         data_path = cfg.get("path", "")
 
         if not data_path:
-            logger.warning("Source config missing 'path', skipping")
+            log.warning("Source config missing 'path', skipping")
             return None
 
         if source_type == "policy":
@@ -187,7 +188,7 @@ class Pipeline:
                 filter_category=cfg.get("filter_category", "compliance_qa"),
             )
         else:
-            logger.warning("Unknown source type: %s", source_type)
+            log.warning("Unknown source type: %s", source_type)
             return None
 
     def run(self, since: Optional[datetime] = None, dry_run: bool = False) -> dict[str, Any]:
@@ -207,9 +208,9 @@ class Pipeline:
         # ------------------------------------------------------------------
         # Step 1: 采集
         # ------------------------------------------------------------------
-        logger.info("[Pipeline] Step 1/6: Collecting from %d sources", len(self._sources))
+        log.info("[Pipeline] Step 1/6: Collecting from %d sources", len(self._sources))
         all_records = self.collect(since=since)
-        logger.info(
+        log.info(
             "[Pipeline] Collected %d records from %d sources",
             len(all_records),
             len(self._sources),
@@ -218,29 +219,29 @@ class Pipeline:
         # ------------------------------------------------------------------
         # Step 2: 规范化
         # ------------------------------------------------------------------
-        logger.info("[Pipeline] Step 2/6: Normalizing")
+        log.info("[Pipeline] Step 2/6: Normalizing")
         all_records = self.normalize(all_records)
 
         # ------------------------------------------------------------------
         # Step 3: PII 脱敏
         # ------------------------------------------------------------------
-        logger.info("[Pipeline] Step 3/6: PII scrubbing")
+        log.info("[Pipeline] Step 3/6: PII scrubbing")
         all_records = self.scrub(all_records)
 
         # ------------------------------------------------------------------
         # Step 4: 过滤（长度 + 敏感词）
         # ------------------------------------------------------------------
-        logger.info("[Pipeline] Step 4/6: Filtering")
+        log.info("[Pipeline] Step 4/6: Filtering")
         all_records = self.filter_records(all_records)
-        logger.info("[Pipeline] After filter: %d records", len(all_records))
+        log.info("[Pipeline] After filter: %d records", len(all_records))
 
         # ------------------------------------------------------------------
         # Step 5: 配对构造
         # ------------------------------------------------------------------
-        logger.info("[Pipeline] Step 5/6: Building pairs")
+        log.info("[Pipeline] Step 5/6: Building pairs")
         dpo_samples = list(self.build_dpo_pairs(all_records))
         sft_samples = list(self.build_sft_samples(all_records))
-        logger.info(
+        log.info(
             "[Pipeline] Built %d DPO + %d SFT samples",
             len(dpo_samples),
             len(sft_samples),
@@ -251,12 +252,12 @@ class Pipeline:
         # ------------------------------------------------------------------
         if dpo_samples:
             dpo_samples = self._dedup_by_prompt(dpo_samples)
-            logger.info("[Pipeline] After prompt dedup: %d DPO samples", len(dpo_samples))
+            log.info("[Pipeline] After prompt dedup: %d DPO samples", len(dpo_samples))
 
         # ------------------------------------------------------------------
         # Step 6: 校验 + 回流修复 + 写出
         # ------------------------------------------------------------------
-        logger.info("[Pipeline] Step 6/6: Validating & exporting")
+        log.info("[Pipeline] Step 6/6: Validating & exporting")
 
         dpo_valid: list[dict[str, Any]] = []
         sft_valid: list[dict[str, Any]] = []
@@ -266,14 +267,14 @@ class Pipeline:
             if not dry_run:
                 written = self._dpo_exporter.write_stream(iter(dpo_valid))
                 self._stats["exporter"]["dpo_written"] = written
-                logger.info("[Pipeline] DPO exported: %d samples", written)
+                log.info("[Pipeline] DPO exported: %d samples", written)
 
         if sft_samples:
             sft_valid = self._validate_sft(sft_samples)
             if not dry_run:
                 written = self._sft_exporter.write_stream(iter(sft_valid))
                 self._stats["exporter"]["sft_written"] = written
-                logger.info("[Pipeline] SFT exported: %d samples", written)
+                log.info("[Pipeline] SFT exported: %d samples", written)
 
         # ------------------------------------------------------------------
         # Step 7: 评测留出集生成
@@ -304,8 +305,8 @@ class Pipeline:
         self._stats["dpo_total"] = len(dpo_valid)
         self._stats["sft_total"] = len(sft_valid)
 
-        logger.info("[Pipeline] Finished in %.1fs", elapsed)
-        logger.info(
+        log.info("[Pipeline] Finished in %.1fs", elapsed)
+        log.info(
             "[Pipeline] Summary: %d DPO, %d SFT samples",
             len(dpo_valid),
             len(sft_valid),
@@ -332,7 +333,7 @@ class Pipeline:
                 count += 1
             self._stats["collector"]["by_source"][source.source_name] = count
             self._stats["collector"]["total"] += count
-            logger.info("  Source '%s': %d records", source.source_name, count)
+            log.info("  Source '%s': %d records", source.source_name, count)
         return records
 
     def normalize(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -414,7 +415,7 @@ class Pipeline:
         results = self._validator.validate_batch(samples)
         valid = [s for s, ok, _ in results if ok]
         self._stats["validator"] = self._validator.stats(samples)
-        logger.info(
+        log.info(
             "[Validator] %d/%d passed (%.1f%%)",
             len(valid),
             len(samples),
@@ -462,7 +463,7 @@ class Pipeline:
                     if ok:
                         valid.append(s)
                         repaired_count += 1
-            logger.info(
+            log.info(
                 "[Repair] Attempted %d, repaired %d",
                 len(to_repair),
                 repaired_count,
@@ -477,7 +478,7 @@ class Pipeline:
             "pass_rate": len(valid) / max(total_checked, 1),
             "repaired": repaired_count,
         }
-        logger.info(
+        log.info(
             "[Validator] %d/%d passed (%.1f%%) [repaired: %d]",
             len(valid),
             total_checked,
@@ -548,7 +549,7 @@ class Pipeline:
         try:
             clauses = policy_store.search(policy_id=policy_id, prompt=prompt)
         except Exception as e:
-            logger.warning("PolicyStore search failed for %s: %s", policy_id, e)
+            log.warning("PolicyStore search failed for %s: %s", policy_id, e)
             return ""
 
         if not clauses:
@@ -590,7 +591,7 @@ class Pipeline:
                 result.append(s)
         dup_count = len(samples) - len(result)
         if dup_count:
-            logger.info("[Dedup] Removed %d duplicate prompts", dup_count)
+            log.info("[Dedup] Removed %d duplicate prompts", dup_count)
         return result
 
     def _validate_sft(self, samples: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -629,7 +630,7 @@ class Pipeline:
                 f.write(json.dumps(s, ensure_ascii=False) + "\n")
 
         self._stats["holdout"] = {"path": path, "count": len(eval_set)}
-        logger.info(
+        log.info(
             "[Holdout] Written %d samples to %s (train: %d)",
             len(eval_set),
             path,
@@ -715,7 +716,7 @@ class Pipeline:
                 f.write(f"留出路径：{ho.get('path', 'N/A')}\n")
                 f.write(f"留出条数：{ho.get('count', 0)}\n\n")
 
-        logger.info("[Report] Quality report written to %s", path)
+        log.info("[Report] Quality report written to %s", path)
 
     # ------------------------------------------------------------------
     # 辅助

@@ -17,16 +17,17 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Optional
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, DistributedSampler
 
+from utils.logger import CustomLogger
+
 from .base import DistributedBackend, TrainerConfig
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # 模型架构检测
@@ -311,7 +312,7 @@ def _convert_gpt2_to_tp(
         )
         new_wte.load_weights_from_embedding(old_wte)
         transformer.wte = new_wte
-        logger.info(
+        log.info(
             "GPT2 wte → VocabParallelEmbedding (rank=%s/%s)", tp_rank, tp_size
         )
 
@@ -328,7 +329,7 @@ def _convert_gpt2_to_tp(
         )
         new_head.load_weights_from_linear(old_head)
         model.lm_head = new_head
-        logger.info(
+        log.info(
             "GPT2 lm_head → ColumnParallelLinear (rank=%s/%s)", tp_rank, tp_size
         )
 
@@ -400,9 +401,9 @@ def _convert_gpt2_to_tp(
                 new.load_weights_from_linear(old)
                 mlp.c_proj = new
 
-        logger.debug("GPT2 block %s converted to TP", i)
+        log.debug("GPT2 block %s converted to TP", i)
 
-    logger.info(
+    log.info(
         "GPT2 model converted to TP: rank=%s/%s, blocks=%s",
         tp_rank, tp_size, len(blocks),
     )
@@ -448,7 +449,7 @@ def _convert_qwen2_to_tp(
         )
         new_embed.load_weights_from_embedding(old_embed)
         base_model.embed_tokens = new_embed
-        logger.info(
+        log.info(
             "Qwen2 embed_tokens → VocabParallelEmbedding (rank=%s/%s)",
             tp_rank, tp_size,
         )
@@ -466,7 +467,7 @@ def _convert_qwen2_to_tp(
         )
         new_head.load_weights_from_linear(old_head)
         model.lm_head = new_head
-        logger.info(
+        log.info(
             "Qwen2 lm_head → ColumnParallelLinear (rank=%s/%s)", tp_rank, tp_size
         )
 
@@ -539,9 +540,9 @@ def _convert_qwen2_to_tp(
                 new_down.load_weights_from_linear(old_down)
                 mlp.down_proj = new_down
 
-        logger.debug("Qwen2 layer %s converted to TP", i)
+        log.debug("Qwen2 layer %s converted to TP", i)
 
-    logger.info(
+    log.info(
         "Qwen2 model converted to TP: rank=%s/%s, layers=%s",
         tp_rank, tp_size, len(layers),
     )
@@ -621,7 +622,7 @@ class MegatronBackend(DistributedBackend):
                 f"MegatronBackend supports GPT2, Qwen2.5, and Qwen3 models. "
                 f"Set model.config.model_type or model.config.architectures accordingly."
             )
-        logger.info("Detected model type: %s", model_type)
+        log.info("Detected model type: %s", model_type)
 
         # 2. 读取 Megatron 配置
         mg_config = config.megatron_config
@@ -631,7 +632,7 @@ class MegatronBackend(DistributedBackend):
         # 若 world_size > 1 且未显式设置 TP，自动推断
         if self._tp_size <= 1 and config.world_size > 1:
             self._tp_size = config.world_size
-            logger.info(
+            log.info(
                 "Auto-inferred TP size from world_size: %s", self._tp_size
             )
 
@@ -649,7 +650,7 @@ class MegatronBackend(DistributedBackend):
         self._model = tp_model
         self._optimizer = optimizer
 
-        logger.info(
+        log.info(
             "Megatron backend initialized: tp_size=%s, model_type=%s, device=%s",
             self._tp_size,
             model_type,
@@ -725,7 +726,7 @@ class MegatronBackend(DistributedBackend):
         """
         saved_tp = state.get('tp_size', 1)
         if saved_tp != self._tp_size:
-            logger.warning(
+            log.warning(
                 "Checkpoint tp_size=%s differs from current tp_size=%s. "
                 "Cross-TP checkpoint loading requires merge_and_unload first.",
                 saved_tp,
@@ -770,7 +771,7 @@ class MegatronBackend(DistributedBackend):
 
         # 确保 torch.distributed 已初始化
         if not torch.distributed.is_initialized():
-            logger.info("Initializing torch.distributed with NCCL backend")
+            log.info("Initializing torch.distributed with NCCL backend")
             torch.distributed.init_process_group(backend='nccl')
 
         try:
@@ -797,7 +798,7 @@ class MegatronBackend(DistributedBackend):
         )
         self._megatron_initialized = True
 
-        logger.info(
+        log.info(
             "Megatron model parallel initialized: tp=%s, pp=%s",
             self._tp_size,
             pp_size,
@@ -811,14 +812,14 @@ class MegatronBackend(DistributedBackend):
     ) -> nn.Module:
         """根据模型类型应用 Tensor Parallelism 转换。"""
         if self._tp_size <= 1:
-            logger.info(
+            log.info(
                 "TP size=%s — skipping tensor parallelism (DDP-only mode)",
                 self._tp_size,
             )
             return model
 
         if not _is_megatron_core_available():
-            logger.warning(
+            log.warning(
                 "megatron-core not installed; falling back to non-TP model. "
                 "Install with: pip install megatron-core"
             )
@@ -837,7 +838,7 @@ class MegatronBackend(DistributedBackend):
         elif model_type == 'qwen2':
             return _convert_qwen2_to_tp(model, tp_config, init_method)
         else:
-            logger.warning(
+            log.warning(
                 "Unknown model type '%s', TP conversion skipped", model_type
             )
             return model

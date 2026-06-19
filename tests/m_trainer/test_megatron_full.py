@@ -25,7 +25,6 @@ import argparse
 import copy
 import gc
 import json
-import logging
 import os
 import sys
 import tempfile
@@ -43,6 +42,8 @@ _src_dir = os.path.join(_project_root, 'src')
 if _src_dir not in sys.path:
     sys.path.insert(0, _src_dir)
 
+from utils.logger import CustomLogger
+
 from m_trainer.backends.base import TrainerConfig, DistributedBackend
 from m_trainer.backends.megatron import (
     MegatronBackend,
@@ -50,12 +51,7 @@ from m_trainer.backends.megatron import (
     _is_megatron_core_available,
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(levelname)s] %(message)s',
-    datefmt='%H:%M:%S',
-)
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 # ---- 颜色输出 ----
 GREEN = '\033[0;32m'; RED = '\033[0;31m'; YELLOW = '\033[1;33m'; NC = '\033[0m'
@@ -103,38 +99,38 @@ def test_model_detection() -> dict[str, bool]:
     """Part A: 测试所有模型类型的自动检测。"""
     results = {}
 
-    logger.info("=" * 60)
-    logger.info("Part A: 模型检测测试")
-    logger.info("=" * 60)
+    log.info("=" * 60)
+    log.info("Part A: 模型检测测试")
+    log.info("=" * 60)
 
     # GPT2
     m = _DummyGPT2Model()
     r = detect_model_type(m)
     results['a1_gpt2_detect'] = (r == 'gpt2')
-    logger.info("  A1 GPT2 检测: %s → %s", '✅' if results['a1_gpt2_detect'] else '❌', r)
+    log.info("  A1 GPT2 检测: %s → %s", '✅' if results['a1_gpt2_detect'] else '❌', r)
 
     # Qwen2.5
     m2 = _DummyQwen2Model()
     r2 = detect_model_type(m2)
     results['a2_qwen2_detect'] = (r2 == 'qwen2')
-    logger.info("  A2 Qwen2 检测: %s → %s", '✅' if results['a2_qwen2_detect'] else '❌', r2)
+    log.info("  A2 Qwen2 检测: %s → %s", '✅' if results['a2_qwen2_detect'] else '❌', r2)
 
     # Qwen3
     m3 = _DummyQwen3Model()
     r3 = detect_model_type(m3)
     results['a3_qwen3_detect'] = (r3 == 'qwen2')  # Qwen3 共享 qwen2 转换逻辑
-    logger.info("  A3 Qwen3 检测: %s → %s (归一化为 qwen2)", '✅' if results['a3_qwen3_detect'] else '❌', r3)
+    log.info("  A3 Qwen3 检测: %s → %s (归一化为 qwen2)", '✅' if results['a3_qwen3_detect'] else '❌', r3)
 
     # Unknown
     m4 = nn.Linear(10, 10)
     r4 = detect_model_type(m4)
     results['a4_unknown_detect'] = (r4 == 'unknown')
-    logger.info("  A4 Unknown 检测: %s → %s", '✅' if results['a4_unknown_detect'] else '❌', r4)
+    log.info("  A4 Unknown 检测: %s → %s", '✅' if results['a4_unknown_detect'] else '❌', r4)
 
     # MegatronBackend 实例化
     backend = MegatronBackend()
     results['a5_backend_instantiate'] = isinstance(backend, MegatronBackend)
-    logger.info("  A5 后端实例化: %s", '✅' if results['a5_backend_instantiate'] else '❌')
+    log.info("  A5 后端实例化: %s", '✅' if results['a5_backend_instantiate'] else '❌')
 
     return results
 
@@ -270,9 +266,9 @@ def test_tp1_standalone() -> dict[str, bool]:
     """Part B: TP=1 单卡测试 —— 验证后端初始化、前向、反向、优化器步进。"""
     results = {}
 
-    logger.info("=" * 60)
-    logger.info("Part B: TP=1 单卡测试")
-    logger.info("=" * 60)
+    log.info("=" * 60)
+    log.info("Part B: TP=1 单卡测试")
+    log.info("=" * 60)
 
     cfg = TrainerConfig(
         distributed_backend='megatron',
@@ -282,7 +278,7 @@ def test_tp1_standalone() -> dict[str, bool]:
     )
 
     # --- B1: GPT2 TP=1 init ---
-    logger.info("  B1: GPT2 TP=1 初始化...")
+    log.info("  B1: GPT2 TP=1 初始化...")
     try:
         backend_gpt = MegatronBackend()
         model_gpt = _MiniGPT2ForTest()
@@ -290,14 +286,14 @@ def test_tp1_standalone() -> dict[str, bool]:
         assert tp_model is not None, "TP 模型为 None"
         assert opt is not None, "优化器为 None"
         results['b1_gpt2_tp1_init'] = True
-        logger.info("  B1 ✅ 初始化成功")
+        log.info("  B1 ✅ 初始化成功")
     except Exception as e:
         results['b1_gpt2_tp1_init'] = False
-        logger.error("  B1 ❌ 初始化失败: %s", e)
+        log.error("  B1 ❌ 初始化失败: %s", e)
 
     # --- B2: GPT2 forward ---
     if results.get('b1_gpt2_tp1_init'):
-        logger.info("  B2: GPT2 前向传播...")
+        log.info("  B2: GPT2 前向传播...")
         try:
             input_ids = torch.randint(0, 128, (2, 8))
             labels = torch.randint(0, 128, (2, 8))
@@ -305,62 +301,62 @@ def test_tp1_standalone() -> dict[str, bool]:
             assert output.loss is not None, "loss 为 None"
             assert output.loss.item() > 0, "loss <= 0"
             results['b2_gpt2_forward'] = True
-            logger.info("  B2 ✅ forward loss=%.4f", output.loss.item())
+            log.info("  B2 ✅ forward loss=%.4f", output.loss.item())
         except Exception as e:
             results['b2_gpt2_forward'] = False
-            logger.error("  B2 ❌ forward 失败: %s", e)
+            log.error("  B2 ❌ forward 失败: %s", e)
 
     # --- B3: GPT2 backward ---
     if results.get('b2_gpt2_forward'):
-        logger.info("  B3: GPT2 反向传播...")
+        log.info("  B3: GPT2 反向传播...")
         try:
             backend_gpt.backward(output.loss)
             results['b3_gpt2_backward'] = True
-            logger.info("  B3 ✅ backward 成功")
+            log.info("  B3 ✅ backward 成功")
         except Exception as e:
             results['b3_gpt2_backward'] = False
-            logger.error("  B3 ❌ backward 失败: %s", e)
+            log.error("  B3 ❌ backward 失败: %s", e)
 
     # --- B4: GPT2 step ---
     if results.get('b3_gpt2_backward'):
-        logger.info("  B4: GPT2 optimizer step...")
+        log.info("  B4: GPT2 optimizer step...")
         try:
             backend_gpt.step()
             results['b4_gpt2_step'] = True
-            logger.info("  B4 ✅ step 成功")
+            log.info("  B4 ✅ step 成功")
         except Exception as e:
             results['b4_gpt2_step'] = False
-            logger.error("  B4 ❌ step 失败: %s", e)
+            log.error("  B4 ❌ step 失败: %s", e)
 
     # --- B5: GPT2 zero_grad ---
     if results.get('b4_gpt2_step'):
-        logger.info("  B5: GPT2 zero_grad...")
+        log.info("  B5: GPT2 zero_grad...")
         try:
             backend_gpt.zero_grad()
             results['b5_gpt2_zero_grad'] = True
-            logger.info("  B5 ✅ zero_grad 成功")
+            log.info("  B5 ✅ zero_grad 成功")
         except Exception as e:
             results['b5_gpt2_zero_grad'] = False
-            logger.error("  B5 ❌ zero_grad 失败: %s", e)
+            log.error("  B5 ❌ zero_grad 失败: %s", e)
 
     del backend_gpt, model_gpt, tp_model, opt; gc.collect()
 
     # --- B6: Qwen2 TP=1 init ---
-    logger.info("  B6: Qwen2 TP=1 初始化...")
+    log.info("  B6: Qwen2 TP=1 初始化...")
     try:
         backend_qw = MegatronBackend()
         model_qw = _MiniQwen2ForTest()
         tp_model_qw, opt_qw = backend_qw.init(model_qw, None, cfg)
         assert tp_model_qw is not None
         results['b6_qwen2_tp1_init'] = True
-        logger.info("  B6 ✅ 初始化成功")
+        log.info("  B6 ✅ 初始化成功")
     except Exception as e:
         results['b6_qwen2_tp1_init'] = False
-        logger.error("  B6 ❌ 初始化失败: %s", e)
+        log.error("  B6 ❌ 初始化失败: %s", e)
 
     # --- B7: Qwen2 forward/backward/step ---
     if results.get('b6_qwen2_tp1_init'):
-        logger.info("  B7: Qwen2 训练一步...")
+        log.info("  B7: Qwen2 训练一步...")
         try:
             input_ids = torch.randint(0, 128, (2, 8))
             labels = torch.randint(0, 128, (2, 8))
@@ -369,15 +365,15 @@ def test_tp1_standalone() -> dict[str, bool]:
             backend_qw.step()
             backend_qw.zero_grad()
             results['b7_qwen2_train_step'] = True
-            logger.info("  B7 ✅ Qwen2 训练一步 loss=%.4f", output.loss.item())
+            log.info("  B7 ✅ Qwen2 训练一步 loss=%.4f", output.loss.item())
         except Exception as e:
             results['b7_qwen2_train_step'] = False
-            logger.error("  B7 ❌ 训练一步失败: %s", e)
+            log.error("  B7 ❌ 训练一步失败: %s", e)
 
     del backend_qw, model_qw, tp_model_qw, opt_qw; gc.collect()
 
     # --- B8: MegatronBackend state_dict ---
-    logger.info("  B8: state_dict / load_state_dict...")
+    log.info("  B8: state_dict / load_state_dict...")
     try:
         backend_sd = MegatronBackend()
         model_sd = _MiniGPT2ForTest()
@@ -388,23 +384,23 @@ def test_tp1_standalone() -> dict[str, bool]:
         assert state['tp_size'] == 1, f"tp_size 期望 1, 实际 {state['tp_size']}"
         backend_sd.load_state_dict(state)
         results['b8_state_dict'] = True
-        logger.info("  B8 ✅ state_dict/load_state_dict 成功")
+        log.info("  B8 ✅ state_dict/load_state_dict 成功")
     except Exception as e:
         results['b8_state_dict'] = False
-        logger.error("  B8 ❌ state_dict 失败: %s", e)
+        log.error("  B8 ❌ state_dict 失败: %s", e)
 
     del backend_sd, model_sd, tp_m, opt_m; gc.collect()
 
     # --- B9: barrier ---
-    logger.info("  B9: barrier...")
+    log.info("  B9: barrier...")
     try:
         backend_barrier = MegatronBackend()
         backend_barrier.barrier()
         results['b9_barrier'] = True
-        logger.info("  B9 ✅ barrier 不报错")
+        log.info("  B9 ✅ barrier 不报错")
     except Exception as e:
         results['b9_barrier'] = False
-        logger.error("  B9 ❌ barrier 失败: %s", e)
+        log.error("  B9 ❌ barrier 失败: %s", e)
 
     return results
 
@@ -419,13 +415,13 @@ def test_tp2_gpt2() -> dict[str, bool]:
     results = {}
 
     if not _is_megatron_core_available():
-        logger.warning("  ⏭️  megatron-core 未安装，跳过 GPT2 TP=2 测试")
+        log.warning("  ⏭️  megatron-core 未安装，跳过 GPT2 TP=2 测试")
         results['c1_skip'] = True
         return results
 
-    logger.info("=" * 60)
-    logger.info("Part C1: GPT2 TP=2 Tensor Parallelism")
-    logger.info("=" * 60)
+    log.info("=" * 60)
+    log.info("Part C1: GPT2 TP=2 Tensor Parallelism")
+    log.info("=" * 60)
 
     from megatron.core.parallel_state import (
         get_tensor_model_parallel_rank,
@@ -436,7 +432,7 @@ def test_tp2_gpt2() -> dict[str, bool]:
     tp_size = get_tensor_model_parallel_world_size()
 
     if tp_size != 2:
-        logger.warning("  ⏭️  TP world_size=%s != 2，跳过 TP=2 测试 (当前 rank=%s)", tp_size, tp_rank)
+        log.warning("  ⏭️  TP world_size=%s != 2，跳过 TP=2 测试 (当前 rank=%s)", tp_size, tp_rank)
         results['c1_skip'] = True
         return results
 
@@ -448,7 +444,7 @@ def test_tp2_gpt2() -> dict[str, bool]:
     )
 
     # --- C1a: GPT2 TP init ---
-    logger.info("  C1a: GPT2 TP=2 初始化 (rank=%s)...", tp_rank)
+    log.info("  C1a: GPT2 TP=2 初始化 (rank=%s)...", tp_rank)
     try:
         backend = MegatronBackend()
         model = _MiniGPT2ForTest(vocab_size=128, hidden_size=64, num_layers=2).cuda()
@@ -460,68 +456,68 @@ def test_tp2_gpt2() -> dict[str, bool]:
         assert isinstance(wte, _VocabParallelEmbeddingWrapper), \
             f"wte 应为 _VocabParallelEmbeddingWrapper, 实际 {type(wte)}"
         results['c1a_gpt2_tp2_init'] = True
-        logger.info("  C1a ✅ rank=%s: TP=2 初始化成功", tp_rank)
+        log.info("  C1a ✅ rank=%s: TP=2 初始化成功", tp_rank)
     except Exception as e:
         results['c1a_gpt2_tp2_init'] = False
-        logger.error("  C1a ❌ rank=%s: 初始化失败: %s", tp_rank, e)
+        log.error("  C1a ❌ rank=%s: 初始化失败: %s", tp_rank, e)
         return results
 
     # 同步
     torch.distributed.barrier()
 
     # --- C1b: GPT2 forward ---
-    logger.info("  C1b: GPT2 TP=2 forward (rank=%s)...", tp_rank)
+    log.info("  C1b: GPT2 TP=2 forward (rank=%s)...", tp_rank)
     try:
         input_ids = torch.randint(0, 128, (2, 8)).cuda()
         labels = torch.randint(0, 128, (2, 8)).cuda()
         output = tp_model(input_ids, labels=labels)
         assert output.loss is not None
         results['c1b_tp2_forward'] = True
-        logger.info("  C1b ✅ rank=%s: forward loss=%.4f", tp_rank, output.loss.item())
+        log.info("  C1b ✅ rank=%s: forward loss=%.4f", tp_rank, output.loss.item())
     except Exception as e:
         results['c1b_tp2_forward'] = False
-        logger.error("  C1b ❌ rank=%s: forward 失败: %s", tp_rank, e)
+        log.error("  C1b ❌ rank=%s: forward 失败: %s", tp_rank, e)
         return results
 
     torch.distributed.barrier()
 
     # --- C1c: GPT2 backward ---
-    logger.info("  C1c: GPT2 TP=2 backward (rank=%s)...", tp_rank)
+    log.info("  C1c: GPT2 TP=2 backward (rank=%s)...", tp_rank)
     try:
         backend.backward(output.loss)
         results['c1c_tp2_backward'] = True
-        logger.info("  C1c ✅ rank=%s: backward 成功", tp_rank)
+        log.info("  C1c ✅ rank=%s: backward 成功", tp_rank)
     except Exception as e:
         results['c1c_tp2_backward'] = False
-        logger.error("  C1c ❌ rank=%s: backward 失败: %s", tp_rank, e)
+        log.error("  C1c ❌ rank=%s: backward 失败: %s", tp_rank, e)
         return results
 
     torch.distributed.barrier()
 
     # --- C1d: GPT2 step ---
-    logger.info("  C1d: GPT2 TP=2 step (rank=%s)...", tp_rank)
+    log.info("  C1d: GPT2 TP=2 step (rank=%s)...", tp_rank)
     try:
         backend.step()
         results['c1d_tp2_step'] = True
-        logger.info("  C1d ✅ rank=%s: step 成功", tp_rank)
+        log.info("  C1d ✅ rank=%s: step 成功", tp_rank)
     except Exception as e:
         results['c1d_tp2_step'] = False
-        logger.error("  C1d ❌ rank=%s: step 失败: %s", tp_rank, e)
+        log.error("  C1d ❌ rank=%s: step 失败: %s", tp_rank, e)
 
     torch.distributed.barrier()
 
     # --- C1e: GPT2 state_dict ---
-    logger.info("  C1e: GPT2 TP=2 state_dict (rank=%s)...", tp_rank)
+    log.info("  C1e: GPT2 TP=2 state_dict (rank=%s)...", tp_rank)
     try:
         state = backend.state_dict()
         assert 'tp_size' in state
         assert state['tp_size'] == 2
         backend.load_state_dict(state)
         results['c1e_tp2_state_dict'] = True
-        logger.info("  C1e ✅ rank=%s: state_dict 成功", tp_rank)
+        log.info("  C1e ✅ rank=%s: state_dict 成功", tp_rank)
     except Exception as e:
         results['c1e_tp2_state_dict'] = False
-        logger.error("  C1e ❌ rank=%s: state_dict 失败: %s", tp_rank, e)
+        log.error("  C1e ❌ rank=%s: state_dict 失败: %s", tp_rank, e)
 
     torch.distributed.barrier()
 
@@ -536,7 +532,7 @@ def test_tp2_qwen2() -> dict[str, bool]:
     results = {}
 
     if not _is_megatron_core_available():
-        logger.warning("  ⏭️  megatron-core 未安装，跳过 Qwen2 TP=2 测试")
+        log.warning("  ⏭️  megatron-core 未安装，跳过 Qwen2 TP=2 测试")
         results['c2_skip'] = True
         return results
 
@@ -550,9 +546,9 @@ def test_tp2_qwen2() -> dict[str, bool]:
         results['c2_skip'] = True
         return results
 
-    logger.info("=" * 60)
-    logger.info("Part C2: Qwen2 TP=2 Tensor Parallelism")
-    logger.info("=" * 60)
+    log.info("=" * 60)
+    log.info("Part C2: Qwen2 TP=2 Tensor Parallelism")
+    log.info("=" * 60)
 
     cfg = TrainerConfig(
         distributed_backend='megatron',
@@ -563,22 +559,22 @@ def test_tp2_qwen2() -> dict[str, bool]:
 
     # Qwen2 的 head_dim 需要能被 tp_size=2 整除
     # MiniQwen2: hidden=64, head_dim=16 (需要能整除)
-    logger.info("  C2a: Qwen2 TP=2 初始化 (rank=%s)...", tp_rank)
+    log.info("  C2a: Qwen2 TP=2 初始化 (rank=%s)...", tp_rank)
     try:
         backend = MegatronBackend()
         model = _MiniQwen2ForTest(vocab_size=128, hidden_size=64, num_layers=2).cuda()
         tp_model, opt = backend.init(model, None, cfg)
         assert tp_model is not None
         results['c2a_qwen2_tp2_init'] = True
-        logger.info("  C2a ✅ rank=%s: Qwen2 TP=2 初始化成功", tp_rank)
+        log.info("  C2a ✅ rank=%s: Qwen2 TP=2 初始化成功", tp_rank)
     except Exception as e:
         results['c2a_qwen2_tp2_init'] = False
-        logger.error("  C2a ❌ rank=%s: 初始化失败: %s", tp_rank, e)
+        log.error("  C2a ❌ rank=%s: 初始化失败: %s", tp_rank, e)
         return results
 
     torch.distributed.barrier()
 
-    logger.info("  C2b: Qwen2 TP=2 训练一步 (rank=%s)...", tp_rank)
+    log.info("  C2b: Qwen2 TP=2 训练一步 (rank=%s)...", tp_rank)
     try:
         input_ids = torch.randint(0, 128, (2, 8)).cuda()
         labels = torch.randint(0, 128, (2, 8)).cuda()
@@ -587,10 +583,10 @@ def test_tp2_qwen2() -> dict[str, bool]:
         backend.step()
         backend.zero_grad()
         results['c2b_qwen2_train_step'] = True
-        logger.info("  C2b ✅ rank=%s: Qwen2 训练一步 loss=%.4f", tp_rank, output.loss.item())
+        log.info("  C2b ✅ rank=%s: Qwen2 训练一步 loss=%.4f", tp_rank, output.loss.item())
     except Exception as e:
         results['c2b_qwen2_train_step'] = False
-        logger.error("  C2b ❌ rank=%s: 训练一步失败: %s", tp_rank, e)
+        log.error("  C2b ❌ rank=%s: 训练一步失败: %s", tp_rank, e)
 
     torch.distributed.barrier()
     del backend, model, tp_model, opt; gc.collect()
@@ -615,34 +611,34 @@ def _run_real_model_test(
         model_name: 显示名称
     """
     results = {}
-    logger.info("=" * 60)
-    logger.info("Part F: 真实模型适配 —— %s", model_name)
-    logger.info("=" * 60)
+    log.info("=" * 60)
+    log.info("Part F: 真实模型适配 —— %s", model_name)
+    log.info("=" * 60)
 
     if not os.path.isdir(model_path):
-        logger.warning("  ⏭️  模型路径不存在: %s", model_path)
+        log.warning("  ⏭️  模型路径不存在: %s", model_path)
         results[f'f_{model_name}_skip'] = True
         return results
 
     try:
         from transformers import AutoModelForCausalLM, AutoConfig
     except ImportError:
-        logger.warning("  ⏭️  transformers 未安装，跳过真实模型测试")
+        log.warning("  ⏭️  transformers 未安装，跳过真实模型测试")
         results[f'f_{model_name}_skip'] = True
         return results
 
     # F1: 模型类型检测
-    logger.info("  F1: 检测模型类型...")
+    log.info("  F1: 检测模型类型...")
     try:
         config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
         actual_type = config.model_type
-        logger.info("  F1   config.model_type=%s, architectures=%s",
+        log.info("  F1   config.model_type=%s, architectures=%s",
                     actual_type, getattr(config, 'architectures', []))
     except Exception as e:
-        logger.warning("  F1 ⚠️  无法读取 config: %s", e)
+        log.warning("  F1 ⚠️  无法读取 config: %s", e)
 
     # F2: 加载模型（TP=1，无需 megatron-core）
-    logger.info("  F2: 加载 %s (TP=1)...", model_name)
+    log.info("  F2: 加载 %s (TP=1)...", model_name)
     try:
         # 使用较小的 dtype 节省显存
         from transformers import AutoModelForCausalLM
@@ -656,16 +652,16 @@ def _run_real_model_test(
         detected = detect_model_type(model)
         assert detected == model_type, f"检测类型 {detected} != 期望 {model_type}"
         results[f'f1_{model_name}_detect'] = True
-        logger.info("  F2 ✅ 模型加载成功, 检测类型=%s, 参数量=%.1fM",
+        log.info("  F2 ✅ 模型加载成功, 检测类型=%s, 参数量=%.1fM",
                     detected, sum(p.numel() for p in model.parameters()) / 1e6)
     except Exception as e:
-        logger.error("  F2 ❌ 模型加载失败: %s", e)
+        log.error("  F2 ❌ 模型加载失败: %s", e)
         results[f'f1_{model_name}_detect'] = False
         # 即使加载失败也继续后续测试
         return results
 
     # F3: MegatronBackend TP=1 初始化
-    logger.info("  F3: MegatronBackend TP=1 初始化...")
+    log.info("  F3: MegatronBackend TP=1 初始化...")
     try:
         cfg = TrainerConfig(
             distributed_backend='megatron',
@@ -677,44 +673,44 @@ def _run_real_model_test(
         tp_model, opt = backend.init(model, None, cfg)
         assert tp_model is not None, "TP 模型为 None"
         results[f'f2_{model_name}_tp1_init'] = True
-        logger.info("  F3 ✅ TP=1 初始化成功")
+        log.info("  F3 ✅ TP=1 初始化成功")
     except Exception as e:
         results[f'f2_{model_name}_tp1_init'] = False
-        logger.error("  F3 ❌ TP=1 初始化失败: %s", e)
+        log.error("  F3 ❌ TP=1 初始化失败: %s", e)
         return results
 
     # F4: 前向传播
-    logger.info("  F4: %s 前向传播...", model_name)
+    log.info("  F4: %s 前向传播...", model_name)
     try:
         input_ids = torch.randint(0, min(1000, model.config.vocab_size - 1), (1, 16))
         output = tp_model(input_ids, labels=input_ids)
         if hasattr(output, 'loss') and output.loss is not None:
             results[f'f3_{model_name}_forward'] = True
-            logger.info("  F4 ✅ forward loss=%.4f", output.loss.item())
+            log.info("  F4 ✅ forward loss=%.4f", output.loss.item())
         else:
             results[f'f3_{model_name}_forward'] = True
-            logger.info("  F4 ✅ forward 成功 (无 loss 头)")
+            log.info("  F4 ✅ forward 成功 (无 loss 头)")
     except Exception as e:
         results[f'f3_{model_name}_forward'] = False
-        logger.error("  F4 ❌ forward 失败: %s", e)
+        log.error("  F4 ❌ forward 失败: %s", e)
 
     # F5: state_dict
-    logger.info("  F5: %s state_dict...", model_name)
+    log.info("  F5: %s state_dict...", model_name)
     try:
         state = backend.state_dict()
         assert 'model' in state, "state 缺少 model key"
         assert 'tp_size' in state, "state 缺少 tp_size key"
         results[f'f4_{model_name}_state_dict'] = True
-        logger.info("  F5 ✅ state_dict/load_state_dict 成功")
+        log.info("  F5 ✅ state_dict/load_state_dict 成功")
     except Exception as e:
         results[f'f4_{model_name}_state_dict'] = False
-        logger.error("  F5 ❌ state_dict 失败: %s", e)
+        log.error("  F5 ❌ state_dict 失败: %s", e)
 
     del backend, model, tp_model, opt; gc.collect()
 
     # F6: TP=2 测试（仅在 torchrun 多进程环境下运行，需 torch.distributed 已初始化）
     if _is_megatron_core_available() and torch.cuda.device_count() >= 2 and torch.distributed.is_initialized():
-        logger.info("  F6: %s TP=2 测试...", model_name)
+        log.info("  F6: %s TP=2 测试...", model_name)
         try:
             from megatron.core.parallel_state import (
                 get_tensor_model_parallel_rank,
@@ -751,17 +747,17 @@ def _run_real_model_test(
                 torch.distributed.barrier()
                 results[f'f5_{model_name}_tp2'] = True
                 tp_rank = get_tensor_model_parallel_rank()
-                logger.info("  F6 ✅ rank=%s: %s TP=%s 训练一步 loss=%.4f",
+                log.info("  F6 ✅ rank=%s: %s TP=%s 训练一步 loss=%.4f",
                             tp_rank, model_name, tp_size,
                             output2.loss.item() if output2.loss is not None else float('nan'))
                 del backend2, model2, tp_model2, opt2
                 torch.cuda.empty_cache()
             else:
                 results[f'f5_{model_name}_tp2'] = True
-                logger.info("  F6 ⏭️  TP size=%s 不足 2，跳过", tp_size)
+                log.info("  F6 ⏭️  TP size=%s 不足 2，跳过", tp_size)
         except Exception as e:
             results[f'f5_{model_name}_tp2'] = False
-            logger.error("  F6 ❌ TP=2 测试失败: %s", e)
+            log.error("  F6 ❌ TP=2 测试失败: %s", e)
 
     return results
 
@@ -804,16 +800,16 @@ def generate_report(results: dict[str, bool], title: str) -> _MegatronTestReport
             report.failed += 1
             report.details.append(f"  ❌ {k}")
 
-    logger.info("")
-    logger.info("=" * 70)
-    logger.info("📊 %s 测试报告", title)
-    logger.info("=" * 70)
-    logger.info("  总计: %d  |  通过: %d  |  失败: %d  |  跳过: %d",
+    log.info("")
+    log.info("=" * 70)
+    log.info("📊 %s 测试报告", title)
+    log.info("=" * 70)
+    log.info("  总计: %d  |  通过: %d  |  失败: %d  |  跳过: %d",
                 report.total, report.passed, report.failed, report.skipped)
-    logger.info("-" * 70)
+    log.info("-" * 70)
     for line in report.details:
-        logger.info(line)
-    logger.info("=" * 70)
+        log.info(line)
+    log.info("=" * 70)
 
     return report
 
@@ -858,16 +854,16 @@ def main():
             c2_results = test_tp2_qwen2()
             total_results.update(c2_results)
         else:
-            logger.warning("⚠️  torch.distributed 未初始化！")
-            logger.warning("  请使用 torchrun 启动以运行 Part C TP=2 测试:")
-            logger.warning("    torchrun --nproc_per_node=2 tests/m_trainer/test_megatron_full.py ...")
+            log.warning("⚠️  torch.distributed 未初始化！")
+            log.warning("  请使用 torchrun 启动以运行 Part C TP=2 测试:")
+            log.warning("    torchrun --nproc_per_node=2 tests/m_trainer/test_megatron_full.py ...")
             total_results['c_warning'] = True
     elif torch.cuda.device_count() >= 2 and not _is_megatron_core_available():
-        logger.warning("⚠️  检测到 %d GPU 但 megatron-core 未安装，跳过 TP=2 测试",
+        log.warning("⚠️  检测到 %d GPU 但 megatron-core 未安装，跳过 TP=2 测试",
                        torch.cuda.device_count())
-        logger.warning("  安装: pip install megatron-core")
+        log.warning("  安装: pip install megatron-core")
     else:
-        logger.info("ℹ️  GPU 数量=%d，跳过 TP=2 测试", torch.cuda.device_count())
+        log.info("ℹ️  GPU 数量=%d，跳过 TP=2 测试", torch.cuda.device_count())
 
     # ---- Part F: 真实模型加载 ----
     # GPT2
@@ -901,7 +897,7 @@ def main():
                 'skipped': report.skipped,
                 'results': total_results,
             }, f, indent=2)
-        logger.info("测试结果已写入: %s", args.output_json)
+        log.info("测试结果已写入: %s", args.output_json)
 
     torch.cuda.empty_cache()
     return 0 if not report.failed else 1

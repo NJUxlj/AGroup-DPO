@@ -7,13 +7,13 @@
 from __future__ import annotations
 
 import json
-import logging
+from utils.logger import CustomLogger
 import re
 from typing import Any
 
 from openai import OpenAI
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 class LLMProvider:
@@ -105,7 +105,7 @@ class LLMProvider:
         if response_format:
             kwargs["response_format"] = response_format
 
-        logger.debug(
+        log.debug(
             "LLMProvider chat: model=%s, messages=%d, temperature=%.2f, max_tokens=%d",
             self._model,
             len(messages),

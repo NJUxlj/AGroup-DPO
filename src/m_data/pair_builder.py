@@ -10,17 +10,18 @@ M02 § 3.2: 针对保险业务场景，采用三种互补策略：
 
 import hashlib
 import json
-import logging
 import random
 from pathlib import Path
 from typing import Any, Iterator, Optional, TYPE_CHECKING
+
+from utils.logger import CustomLogger
 
 from m_data.templates import HARD_NEGATIVE_TEMPLATES
 
 if TYPE_CHECKING:
     from llm.llm_provider import LLMProvider
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 # 加载 LLM-as-Judge 提示词模板
 _JUDGE_TEMPLATE_PATH = Path(__file__).parent / "prompts" / "judge_pairwise.txt"
@@ -78,7 +79,7 @@ class PairBuilder:
             elif strategy == "retrieval_diff":
                 yield from self._build_retrieval_diff(records)
             else:
-                logger.warning("Unknown strategy: %s, skipping", strategy)
+                log.warning("Unknown strategy: %s, skipping", strategy)
 
     # ------------------------------------------------------------------
     # 策略 A: 基于业务规则的硬负例
@@ -145,7 +146,7 @@ class PairBuilder:
         两者均不可用时跳过。
         """
         if not self._judge_provider and not self._judge_endpoint:
-            logger.info("LLM-as-Judge not configured (no provider or endpoint), skipping strategy B")
+            log.info("LLM-as-Judge not configured (no provider or endpoint), skipping strategy B")
             return
 
         for rec in records:
@@ -219,7 +220,7 @@ class PairBuilder:
                     float(result.get("score_b", 0.5)),
                 )
             except Exception as e:
-                logger.warning("Judge (LLMProvider) call failed: %s", e)
+                log.warning("Judge (LLMProvider) call failed: %s", e)
                 return "TIE", 0.5, 0.5
 
         # 旧路径：原始 HTTP 调用（向后兼容，无 API key）
@@ -245,7 +246,7 @@ class PairBuilder:
                 float(result.get("score_b", 0.5)),
             )
         except Exception as e:
-            logger.warning("Judge call failed: %s", e)
+            log.warning("Judge call failed: %s", e)
             return "TIE", 0.5, 0.5
 
     # ------------------------------------------------------------------
@@ -263,7 +264,7 @@ class PairBuilder:
         需要 rag_endpoint 可用；若不可用则跳过。
         """
         if not self._rag_endpoint:
-            logger.info("RAG endpoint not configured, skipping strategy C")
+            log.info("RAG endpoint not configured, skipping strategy C")
             return
 
         for rec in records:
@@ -275,7 +276,7 @@ class PairBuilder:
                 full_answer = self._call_rag(question, index_type="full")
                 trunc_answer = self._call_rag(question, index_type="trunc")
             except Exception as e:
-                logger.warning("RAG call failed for '%s': %s", question[:30], e)
+                log.warning("RAG call failed for '%s': %s", question[:30], e)
                 continue
 
             if not full_answer or not trunc_answer:

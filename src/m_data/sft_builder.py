@@ -5,11 +5,12 @@ M02 § 3.7: 从规范化后的记录构造 instruction-input-output 格式的 SF
 """
 
 import hashlib
-import logging
 import random
 from typing import Any, Iterator
 
-logger = logging.getLogger(__name__)
+from utils.logger import CustomLogger
+
+log = CustomLogger.get_logger(__name__)
 
 # 系统提示词（固定）
 _SYSTEM_PROMPT = "你是AI财保助理，需严格依据条款作答。"

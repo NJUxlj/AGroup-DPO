@@ -7,16 +7,17 @@
 """
 
 import argparse
-import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 
 import yaml
 
+from utils.logger import CustomLogger
+
 from m_data.pipeline import Pipeline
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -63,14 +64,12 @@ def load_config(path: str) -> dict:
 def main() -> None:
     args = parse_args()
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+    CustomLogger.configure(
+        level="DEBUG" if args.verbose else "INFO",
     )
 
     config = load_config(args.config)
-    logger.info("Loaded config from %s", args.config)
+    log.info("Loaded config from %s", args.config)
 
     since = None
     if args.since:
@@ -83,7 +82,7 @@ def main() -> None:
                 file=sys.stderr,
             )
             sys.exit(1)
-        logger.info("Incremental mode: since=%s", since.isoformat())
+        log.info("Incremental mode: since=%s", since.isoformat())
 
     pipeline = Pipeline(config)
     stats = pipeline.run(since=since, dry_run=args.dry_run)

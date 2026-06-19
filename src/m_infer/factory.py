@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import importlib
-import logging
+from utils.logger import CustomLogger
 from typing import TYPE_CHECKING
 
 from .registry import INFER_REGISTRY
@@ -15,7 +15,7 @@ from .registry import INFER_REGISTRY
 if TYPE_CHECKING:
     from .base import InferBackend
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 def build_infer_backend(name: str, model_path: str, **kwargs) -> "InferBackend":
@@ -63,5 +63,5 @@ def build_infer_backend(name: str, model_path: str, **kwargs) -> "InferBackend":
     backend_cls = getattr(module, cls_name)
     backend = backend_cls()
     backend.load(model_path, **kwargs)
-    logger.info("Built infer backend: %s → %s.%s (model=%s)", name, module_path, cls_name, model_path)
+    log.info("Built infer backend: %s → %s.%s (model=%s)", name, module_path, cls_name, model_path)
     return backend

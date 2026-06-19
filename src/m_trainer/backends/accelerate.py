@@ -5,16 +5,17 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Optional
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
+from utils.logger import CustomLogger
+
 from .base import DistributedBackend, TrainerConfig
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 class AccelerateBackend(DistributedBackend):
@@ -68,7 +69,7 @@ class AccelerateBackend(DistributedBackend):
             self._model = self._accelerator.prepare(model)
             self._optimizer = None
 
-        logger.info(
+        log.info(
             "accelerate initialized: device=%s, num_processes=%s",
             self._accelerator.device,
             self._accelerator.num_processes,

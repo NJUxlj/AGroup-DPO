@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-import logging
+from utils.logger import CustomLogger
 import time
 from typing import Any, Optional
 
@@ -13,7 +13,7 @@ import requests
 
 from .base import InferBackend, InferRequest, InferResponse
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 class XinferenceBackend(InferBackend):
@@ -51,7 +51,7 @@ class XinferenceBackend(InferBackend):
         if model_uid is not None:
             # 使用已注册的模型
             self._model_uid = model_uid
-            logger.info(
+            log.info(
                 "xinference connected: endpoint=%s, model_uid=%s",
                 self._endpoint, self._model_uid,
             )
@@ -59,7 +59,7 @@ class XinferenceBackend(InferBackend):
 
         # 注册新模型
         model_name = kwargs.get("model_name", "insurance-dpo")
-        logger.info(
+        log.info(
             "xinference registering model: path=%s, endpoint=%s",
             model_path, self._endpoint,
         )
@@ -83,7 +83,7 @@ class XinferenceBackend(InferBackend):
                 "Start it with: xinference-local -H 0.0.0.0 -p 9997"
             )
         load_ms = (time.perf_counter() - t0) * 1000
-        logger.info("xinference model registered in %.0fms, uid=%s", load_ms, self._model_uid)
+        log.info("xinference model registered in %.0fms, uid=%s", load_ms, self._model_uid)
 
     def infer(self, req: InferRequest) -> InferResponse:
         """单条 xinference 推理。"""
@@ -130,4 +130,4 @@ class XinferenceBackend(InferBackend):
         """断开 xinference 连接。"""
         self._model_uid = ""
         self._endpoint = ""
-        logger.info("xinference backend shutdown")
+        log.info("xinference backend shutdown")

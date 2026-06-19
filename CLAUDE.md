@@ -12,6 +12,11 @@ ssh -p 41038 root@connect.westd.seetacloud.com
 password: cyi8gWNJki3l
 
 
+- start server vpn: source /etc/network_turbo
+- close server vpn: unset http_proxy && unset https_proxy
+- github access: do remember to open vpn before you cloning anything.
+
+
 ### 服务器环境 （没有则创建）
 - 安装 miniconda，安装到 /root/autodl-tmp 目录下， 然后创建一个软连接， 将 /root/autodl-tmp/miniconda 链接到 /root/miniconda
 - conda 环境存储目录： /root/autodl-tmp/envs

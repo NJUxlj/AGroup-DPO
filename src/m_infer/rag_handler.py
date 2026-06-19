@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-import logging
+from utils.logger import CustomLogger
 import re
 import time
 import uuid
@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from m_infer.base import InferBackend, InferRequest
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 # ---- Pydantic 模型 ----
@@ -132,7 +132,7 @@ def create_rag_router(
                 request_id=request_id,
             )
         except Exception as exc:
-            logger.error("insurance_qa inference failed: %s", exc)
+            log.error("insurance_qa inference failed: %s", exc)
             raise HTTPException(status_code=500, detail=str(exc))
 
     return router

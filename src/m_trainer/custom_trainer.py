@@ -13,7 +13,6 @@ Usage:
 from __future__ import annotations
 
 import json
-import logging
 import math
 import os
 import time
@@ -27,11 +26,13 @@ import yaml
 from torch.utils.data import DataLoader, Dataset, IterableDataset
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
+from utils.logger import CustomLogger
+
 from .backends.base import TrainerConfig
 from .backends.optimizer_factory import AdamWFactory
 from .factory import build_backend
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -217,11 +218,11 @@ class CustomTrainer:
 
     def train(self) -> None:
         """执行完整训练流程。"""
-        logger.info("=" * 60)
-        logger.info("CustomTrainer: stage=%s, backend=%s", self.cfg.stage, self.cfg.distributed_backend)
-        logger.info("  model: %s", self.cfg.model_name_or_path)
-        logger.info("  output: %s", self.cfg.output_dir)
-        logger.info("=" * 60)
+        log.info("=" * 60)
+        log.info("CustomTrainer: stage=%s, backend=%s", self.cfg.stage, self.cfg.distributed_backend)
+        log.info("  model: %s", self.cfg.model_name_or_path)
+        log.info("  output: %s", self.cfg.output_dir)
+        log.info("=" * 60)
 
         self._load_model_and_tokenizer()
         dataloader = self._load_data()
@@ -230,13 +231,13 @@ class CustomTrainer:
         self._run_training_loop(dataloader)
 
         self._save_checkpoint("final")
-        logger.info("Training complete. Model saved to %s", self.cfg.output_dir)
+        log.info("Training complete. Model saved to %s", self.cfg.output_dir)
 
     # ---- 内部方法 ----
 
     def _load_model_and_tokenizer(self) -> None:
         """加载模型和 tokenizer。"""
-        logger.info("Loading model from %s ...", self.cfg.model_name_or_path)
+        log.info("Loading model from %s ...", self.cfg.model_name_or_path)
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.cfg.model_name_or_path,
             trust_remote_code=self.cfg.trust_remote_code,
@@ -257,14 +258,14 @@ class CustomTrainer:
 
         self.model.to(self._device)
         self.model.train()
-        logger.info("Model loaded: %s params", sum(p.numel() for p in self.model.parameters()))
+        log.info("Model loaded: %s params", sum(p.numel() for p in self.model.parameters()))
 
     def _apply_lora(self) -> None:
         """对模型应用 LoRA adapter。"""
         try:
             from peft import LoraConfig, get_peft_model, TaskType
         except ImportError:
-            logger.warning("peft not installed, skipping LoRA")
+            log.warning("peft not installed, skipping LoRA")
             return
 
         target_modules = [m.strip() for m in self.cfg.lora_target.split(",")]
@@ -276,7 +277,7 @@ class CustomTrainer:
             target_modules=target_modules,
         )
         self.model = get_peft_model(self.model, lora_config)  # type: ignore[assignment]
-        logger.info("LoRA applied: rank=%s, targets=%s", self.cfg.lora_rank, target_modules)
+        log.info("LoRA applied: rank=%s, targets=%s", self.cfg.lora_rank, target_modules)
 
     def _load_data(self) -> DataLoader:
         """加载训练数据集。"""
@@ -289,7 +290,7 @@ class CustomTrainer:
             )
 
         dataset = JSONLinesDataset(data_path)
-        logger.info("Loaded %d samples from %s", len(dataset), data_path)
+        log.info("Loaded %d samples from %s", len(dataset), data_path)
 
         collate_fn = _sft_collate if self.cfg.stage == "sft" else _dpo_collate
         return DataLoader(
@@ -340,7 +341,7 @@ class CustomTrainer:
                         optimizer_for_scheduler, T_max=total_steps
                     )
 
-        logger.info("Training: total_steps=%d, grad_accum=%d, warmup=%d", total_steps, grad_accum, warmup_steps)
+        log.info("Training: total_steps=%d, grad_accum=%d, warmup=%d", total_steps, grad_accum, warmup_steps)
 
         global_step = 0
         total_loss = 0.0
@@ -388,7 +389,7 @@ class CustomTrainer:
                         elapsed = time.perf_counter() - t_start
                         avg_loss = total_loss / (self.cfg.logging_steps * grad_accum)
                         lr = optimizer_for_scheduler.param_groups[0]["lr"] if optimizer_for_scheduler else self.cfg.learning_rate
-                        logger.info(
+                        log.info(
                             "Step %d/%d | loss=%.4f | lr=%.2e | %.1fs",
                             global_step, total_steps, avg_loss, lr, elapsed,
                         )
@@ -398,7 +399,7 @@ class CustomTrainer:
                     if global_step % self.cfg.save_steps == 0:
                         self._save_checkpoint(f"step-{global_step}")
 
-        logger.info("Training loop finished: %d steps in %.1fs", global_step, time.perf_counter() - t_start)
+        log.info("Training loop finished: %d steps in %.1fs", global_step, time.perf_counter() - t_start)
 
     def _sft_step(self, batch: dict) -> torch.Tensor:
         """SFT 前向：标准 LM loss。"""
@@ -454,4 +455,4 @@ class CustomTrainer:
         if self.tokenizer is not None:
             self.tokenizer.save_pretrained(save_dir)
 
-        logger.info("Checkpoint saved to %s", save_dir)
+        log.info("Checkpoint saved to %s", save_dir)

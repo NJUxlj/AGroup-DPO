@@ -8,7 +8,6 @@ PyTorch FSDP 后端适配器 (FR-07)
 from __future__ import annotations
 
 import functools
-import logging
 from typing import Any, Optional
 
 import torch
@@ -26,9 +25,11 @@ from torch.distributed.fsdp.wrap import (
 )
 from torch.utils.data import DataLoader, DistributedSampler
 
+from utils.logger import CustomLogger
+
 from .base import DistributedBackend, TrainerConfig
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 def _get_transformer_block_cls(model: nn.Module) -> set[type]:
@@ -88,7 +89,7 @@ class FSDPBackend(DistributedBackend):
         self._model = wrapped_model
         self._optimizer = wrapped_optimizer
 
-        logger.info("FSDP initialized: world_size=%s", config.world_size)
+        log.info("FSDP initialized: world_size=%s", config.world_size)
         return wrapped_model, wrapped_optimizer
 
     def wrap_model(self, model: nn.Module) -> nn.Module:
@@ -109,12 +110,12 @@ class FSDPBackend(DistributedBackend):
                 transformer_auto_wrap_policy,
                 transformer_layer_cls=transformer_cls,
             )
-            logger.info("FSDP auto_wrap_policy: transformer_auto_wrap (%s)", transformer_cls)
+            log.info("FSDP auto_wrap_policy: transformer_auto_wrap (%s)", transformer_cls)
         else:
             auto_wrap_policy = functools.partial(
                 size_based_auto_wrap_policy, min_num_params=1e6
             )
-            logger.info("FSDP auto_wrap_policy: size_based (min_params=1M)")
+            log.info("FSDP auto_wrap_policy: size_based (min_params=1M)")
 
         mixed_precision = MixedPrecision(
             param_dtype=torch.bfloat16,

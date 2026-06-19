@@ -6,16 +6,17 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Optional
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
+from utils.logger import CustomLogger
+
 from .base import DistributedBackend, TrainerConfig
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 def build_zero3_config(cfg: TrainerConfig) -> dict[str, Any]:
@@ -101,7 +102,7 @@ class DeepSpeedBackend(DistributedBackend):
                              同时具备 optimizer 语义（可调用 engine.step() / engine.backward()）
         """
         if optimizer is not None:
-            logger.warning(
+            log.warning(
                 "DeepSpeedBackend.init() received a non-None optimizer; "
                 "it will be ignored. DeepSpeed creates its own optimizer internally."
             )
@@ -122,7 +123,7 @@ class DeepSpeedBackend(DistributedBackend):
             config_params=ds_config,
         )
 
-        logger.info(
+        log.info(
             "DeepSpeed ZeRO3 initialized: stage=%s, world_size=%s",
             ds_config["zero_optimization"]["stage"],
             config.world_size,

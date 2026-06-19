@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
+from utils.logger import CustomLogger
 import sys
 import time
 from pathlib import Path
@@ -18,7 +18,7 @@ from m_eval.metrics import accuracy_score, bleu_4_score, rouge_l_score
 from m_eval.latency import aggregate_latency
 from m_eval.reporter import EvalReporter
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 def load_eval_data(path: str) -> list[dict]:
@@ -67,12 +67,12 @@ def run_eval(
     t_start = time.perf_counter()
 
     # 1. 加载数据
-    logger.info("Loading eval data from %s ...", eval_data)
+    log.info("Loading eval data from %s ...", eval_data)
     raw = load_eval_data(eval_data)
-    logger.info("Loaded %d entries", len(raw))
+    log.info("Loaded %d entries", len(raw))
 
     # 2. 构建推理后端
-    logger.info("Building infer backend: %s, model=%s", backend_name, model_path)
+    log.info("Building infer backend: %s, model=%s", backend_name, model_path)
     backend = build_infer_backend(backend_name, model_path, **backend_kwargs)
 
     # 确定模型版本
@@ -92,7 +92,7 @@ def run_eval(
         for item in raw:
             dataset_name = item["__dataset_name__"]
             samples = item["__samples__"]
-            logger.info("Evaluating dataset: %s (%d samples)", dataset_name, len(samples))
+            log.info("Evaluating dataset: %s (%d samples)", dataset_name, len(samples))
             _eval_dataset(
                 backend, samples, dataset_name, reporter,
                 max_new_tokens, temperature, all_responses,
@@ -114,14 +114,14 @@ def run_eval(
     json_path, md_path = reporter.write(output_base)
 
     elapsed = time.perf_counter() - t_start
-    logger.info("Evaluation complete in %.1fs (%.1f min)", elapsed, elapsed / 60)
+    log.info("Evaluation complete in %.1fs (%.1f min)", elapsed, elapsed / 60)
 
     # 6. 检查验收标准
     for name, metrics in reporter._datasets.items():
         if metrics["bleu_4"] < 0.30:
-            logger.warning("BLEU-4 for '%s' (%.4f) below threshold 0.30", name, metrics["bleu_4"])
+            log.warning("BLEU-4 for '%s' (%.4f) below threshold 0.30", name, metrics["bleu_4"])
         if metrics["rouge_l"] < 0.45:
-            logger.warning("ROUGE-L for '%s' (%.4f) below threshold 0.45", name, metrics["rouge_l"])
+            log.warning("ROUGE-L for '%s' (%.4f) below threshold 0.45", name, metrics["rouge_l"])
 
     return 0
 
@@ -152,7 +152,7 @@ def _eval_dataset(
     bleu = bleu_4_score(preds, refs)
     rouge = rouge_l_score(preds, refs)
 
-    logger.info(
+    log.info(
         "  %s: accuracy=%.4f, bleu_4=%.4f, rouge_l=%.4f",
         dataset_name, acc, bleu, rouge,
     )
@@ -192,8 +192,8 @@ def main():
 
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO,
+    CustomLogger.configure(
+        level="INFO",
         format="%(asctime)s [%(levelname)s] %(message)s",
     )
 

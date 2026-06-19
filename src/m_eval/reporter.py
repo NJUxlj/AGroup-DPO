@@ -6,14 +6,14 @@
 from __future__ import annotations
 
 import json
-import logging
+from utils.logger import CustomLogger
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 from .latency import LatencyStat
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 class EvalReporter:
@@ -120,12 +120,12 @@ class EvalReporter:
         json_path.parent.mkdir(parents=True, exist_ok=True)
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        logger.info("JSON report saved to %s", json_path)
+        log.info("JSON report saved to %s", json_path)
 
         # Markdown
         md_path = base.with_suffix(".md")
         self._write_markdown(md_path, data)
-        logger.info("Markdown report saved to %s", md_path)
+        log.info("Markdown report saved to %s", md_path)
 
         return json_path, md_path
 

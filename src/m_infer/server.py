@@ -10,7 +10,7 @@ FastAPI 服务入口，暴露 /v1/insurance/qa 端点给司内 RAG 端调用。
 from __future__ import annotations
 
 import argparse
-import logging
+from utils.logger import CustomLogger
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from m_infer.factory import build_infer_backend
 from m_infer.rag_handler import create_rag_router
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 # ---- 生命周期管理 ----
@@ -32,12 +32,12 @@ async def lifespan(app: FastAPI):
     """FastAPI 生命周期：启动加载模型，关闭释放资源。"""
     # 启动
     backend = app.state.backend
-    logger.info("Infer backend ready: %s", type(backend).__name__)
+    log.info("Infer backend ready: %s", type(backend).__name__)
     yield
     # 关闭
-    logger.info("Shutting down infer backend...")
+    log.info("Shutting down infer backend...")
     backend.shutdown()
-    logger.info("Infer backend shutdown complete")
+    log.info("Infer backend shutdown complete")
 
 
 # ---- 应用工厂 ----
@@ -60,7 +60,7 @@ def create_app(
         配置完成的 FastAPI 实例。
     """
     # 加载推理后端
-    logger.info("Loading infer backend: %s, model=%s", backend_name, model_path)
+    log.info("Loading infer backend: %s, model=%s", backend_name, model_path)
     backend = build_infer_backend(backend_name, model_path, **backend_kwargs)
 
     app = FastAPI(
@@ -120,8 +120,8 @@ def main():
 
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO,
+    CustomLogger.configure(
+        level="INFO",
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
@@ -142,7 +142,7 @@ def main():
     )
 
     import uvicorn
-    logger.info("Starting server on %s:%s", args.host, args.port)
+    log.info("Starting server on %s:%s", args.host, args.port)
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
 

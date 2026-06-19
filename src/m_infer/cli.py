@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
+from utils.logger import CustomLogger
 import sys
 import time
 from pathlib import Path
@@ -15,7 +15,7 @@ from pathlib import Path
 from .base import InferRequest
 from .factory import build_infer_backend
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 def main():
@@ -59,8 +59,8 @@ def main():
 
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO,
+    CustomLogger.configure(
+        level="INFO",
         format="%(asctime)s [%(levelname)s] %(message)s",
     )
 
@@ -75,7 +75,7 @@ def main():
         if args.xinference_model_uid:
             kwargs["model_uid"] = args.xinference_model_uid
 
-    logger.info("Building infer backend: %s, model=%s", args.backend, args.model)
+    log.info("Building infer backend: %s, model=%s", args.backend, args.model)
     backend = build_infer_backend(args.backend, args.model, **kwargs)
 
     # 获取 prompts
@@ -94,7 +94,7 @@ def main():
                 prompts.append(line)
 
     if not prompts:
-        logger.error("No prompts provided. Use --prompts or pipe JSON Lines via stdin.")
+        log.error("No prompts provided. Use --prompts or pipe JSON Lines via stdin.")
         sys.exit(1)
 
     # 推理
@@ -108,7 +108,7 @@ def main():
         for p in prompts
     ]
 
-    logger.info("Running inference on %d prompts...", len(requests))
+    log.info("Running inference on %d prompts...", len(requests))
     t0 = time.perf_counter()
 
     if len(requests) == 1:
@@ -117,7 +117,7 @@ def main():
         responses = backend.batch_infer(requests)
 
     total_ms = (time.perf_counter() - t0) * 1000
-    logger.info("Inference done in %.0fms (%.1f ms/sample)", total_ms, total_ms / len(responses))
+    log.info("Inference done in %.0fms (%.1f ms/sample)", total_ms, total_ms / len(responses))
 
     # 输出结果
     results = []
@@ -139,7 +139,7 @@ def main():
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(results, f, ensure_ascii=False, indent=2)
-        logger.info("Results saved to %s", output_path)
+        log.info("Results saved to %s", output_path)
 
     backend.shutdown()
 

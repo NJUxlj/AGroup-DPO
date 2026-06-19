@@ -5,14 +5,14 @@
 
 from __future__ import annotations
 
-import logging
+from utils.logger import CustomLogger
 import os
 import time
 from typing import Any, Optional
 
 from .base import InferBackend, InferRequest, InferResponse
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 class VLLMBackend(InferBackend):
@@ -61,7 +61,7 @@ class VLLMBackend(InferBackend):
         enforce_eager = kwargs.get("enforce_eager", False)
         dtype = kwargs.get("dtype", "bfloat16")
 
-        logger.info(
+        log.info(
             "vLLM loading model: path=%s, tp=%s, max_len=%s, dtype=%s",
             model_path, tensor_parallel_size, max_model_len, dtype,
         )
@@ -77,7 +77,7 @@ class VLLMBackend(InferBackend):
         )
         self._tokenizer = self._llm.get_tokenizer()
         load_ms = (time.perf_counter() - t0) * 1000
-        logger.info("vLLM model loaded in %.0fms", load_ms)
+        log.info("vLLM model loaded in %.0fms", load_ms)
 
     def infer(self, req: InferRequest) -> InferResponse:
         """单条 vLLM 推理。"""
@@ -172,4 +172,4 @@ class VLLMBackend(InferBackend):
         if self._llm is not None:
             del self._llm
             self._llm = None
-            logger.info("vLLM backend shutdown")
+            log.info("vLLM backend shutdown")

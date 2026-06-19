@@ -38,12 +38,14 @@
 from __future__ import annotations
 
 import json
-import logging
+import logging  # 仅用于控制外部库（pymilvus/sentence_transformers/httpx）日志级别
 import os
 import sys
 import time
 from pathlib import Path
 from typing import Any
+
+from utils.logger import CustomLogger
 
 # ------------------------------------------------------------------
 # Path setup
@@ -53,11 +55,8 @@ sys.path.insert(0, str(_PROJECT_ROOT / "src"))
 
 os.chdir(str(_PROJECT_ROOT))
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
-logger = logging.getLogger("dpo_full_smoke")
+CustomLogger.configure(level="INFO")
+log = CustomLogger.get_logger("dpo_full_smoke")
 
 # 抑制 Milvus / transformers 的 DEBUG 噪音
 logging.getLogger("pymilvus").setLevel(logging.WARNING)
@@ -74,20 +73,20 @@ def record(name: str, ok: bool, detail: str = "") -> None:
     if ok:
         PASS += 1
         RESULTS.append((name, True, detail))
-        logger.info("  ✅ %s: %s", name, detail)
+        log.info("  ✅ %s: %s", name, detail)
     else:
         FAIL += 1
         RESULTS.append((name, False, detail))
-        logger.error("  ❌ %s: %s", name, detail)
+        log.error("  ❌ %s: %s", name, detail)
 
 
 # =====================================================================
 # 测试 0: 环境检查
 # =====================================================================
 def test_env() -> None:
-    logger.info("=" * 60)
-    logger.info("测试 0: 环境检查")
-    logger.info("=" * 60)
+    log.info("=" * 60)
+    log.info("测试 0: 环境检查")
+    log.info("=" * 60)
 
     # Python
     py_ver = sys.version.split()[0]
@@ -141,9 +140,9 @@ def test_env() -> None:
 # 测试 1: PolicyStore 索引
 # =====================================================================
 def test_policy_store_index() -> dict[str, Any] | None:
-    logger.info("=" * 60)
-    logger.info("测试 1: PolicyStore 索引政策条款")
-    logger.info("=" * 60)
+    log.info("=" * 60)
+    log.info("测试 1: PolicyStore 索引政策条款")
+    log.info("=" * 60)
 
     from m_data.policy_store import PolicyStore
 
@@ -162,7 +161,7 @@ def test_policy_store_index() -> dict[str, Any] | None:
     # 清理旧的 Milvus 数据，确保全量重建
     db_path = Path(ps_cfg.get("milvus_db_path", "./milvus_data/policy_store.db"))
     if db_path.exists():
-        logger.info("  清理旧的 Milvus 数据: %s", db_path)
+        log.info("  清理旧的 Milvus 数据: %s", db_path)
         import shutil
         shutil.rmtree(str(db_path), ignore_errors=True)
 
@@ -198,9 +197,9 @@ def test_policy_store_index() -> dict[str, Any] | None:
 # 测试 2: PolicyStore 查询
 # =====================================================================
 def _check_policy_store_search(ctx: dict[str, Any]) -> None:
-    logger.info("=" * 60)
-    logger.info("测试 2: PolicyStore 混合检索")
-    logger.info("=" * 60)
+    log.info("=" * 60)
+    log.info("测试 2: PolicyStore 混合检索")
+    log.info("=" * 60)
 
     store = ctx.get("store")
     if not store:
@@ -240,9 +239,9 @@ def _check_policy_store_search(ctx: dict[str, Any]) -> None:
 # 测试 3: 全量 DPO Pipeline
 # =====================================================================
 def test_full_pipeline() -> dict[str, Any] | None:
-    logger.info("=" * 60)
-    logger.info("测试 3: 全量 DPO Pipeline 运行")
-    logger.info("=" * 60)
+    log.info("=" * 60)
+    log.info("测试 3: 全量 DPO Pipeline 运行")
+    log.info("=" * 60)
 
     from m_data.pipeline import Pipeline
     import yaml
@@ -298,9 +297,9 @@ def test_full_pipeline() -> dict[str, Any] | None:
 # 测试 4: 输出质量检查
 # =====================================================================
 def _check_output_quality(ctx: dict[str, Any]) -> None:
-    logger.info("=" * 60)
-    logger.info("测试 4: DPO 输出质量检查（条款引用是否真实）")
-    logger.info("=" * 60)
+    log.info("=" * 60)
+    log.info("测试 4: DPO 输出质量检查（条款引用是否真实）")
+    log.info("=" * 60)
 
     dpo_path = Path(ctx.get("dpo_path", ""))
     if not dpo_path or not dpo_path.exists():
@@ -349,12 +348,12 @@ def _check_output_quality(ctx: dict[str, Any]) -> None:
         for s in samples:
             chosen = s.get("chosen", "")
             if "依据" in chosen and "第" in chosen:
-                logger.info("  抽查样本 (policy_id=%s):", s.get("policy_id", "N/A"))
-                logger.info("    prompt: %s", s.get("prompt", "")[:80])
+                log.info("  抽查样本 (policy_id=%s):", s.get("policy_id", "N/A"))
+                log.info("    prompt: %s", s.get("prompt", "")[:80])
                 # 找到 chosen 中 "依据" 之后的文本
                 idx = chosen.find("依据")
                 clause_suffix = chosen[idx:idx + 200] if idx >= 0 else chosen[-200:]
-                logger.info("    chosen 条款片段: ...%s", clause_suffix)
+                log.info("    chosen 条款片段: ...%s", clause_suffix)
                 break
 
 
@@ -362,9 +361,9 @@ def _check_output_quality(ctx: dict[str, Any]) -> None:
 # 测试 5: Validator 统计
 # =====================================================================
 def _check_validator_stats(ctx: dict[str, Any]) -> None:
-    logger.info("=" * 60)
-    logger.info("测试 5: Validator 校验统计")
-    logger.info("=" * 60)
+    log.info("=" * 60)
+    log.info("测试 5: Validator 校验统计")
+    log.info("=" * 60)
 
     stats = ctx.get("stats", {})
     validator = stats.get("validator", {})
@@ -393,12 +392,12 @@ def _check_validator_stats(ctx: dict[str, Any]) -> None:
     )
 
     # 汇总 stats
-    logger.info("  Pipeline 汇总:")
-    logger.info("    dpo_total: %s", stats.get("dpo_total", "N/A"))
-    logger.info("    sft_total: %s", stats.get("sft_total", "N/A"))
-    logger.info("    elapsed: %.1fs", stats.get("elapsed_seconds", 0))
+    log.info("  Pipeline 汇总:")
+    log.info("    dpo_total: %s", stats.get("dpo_total", "N/A"))
+    log.info("    sft_total: %s", stats.get("sft_total", "N/A"))
+    log.info("    elapsed: %.1fs", stats.get("elapsed_seconds", 0))
     collector = stats.get("collector", {})
-    logger.info("    collector: total=%s, by_source=%s",
+    log.info("    collector: total=%s, by_source=%s",
                 collector.get("total", "N/A"),
                 collector.get("by_source", {}))
 
@@ -407,11 +406,11 @@ def _check_validator_stats(ctx: dict[str, Any]) -> None:
 # Main
 # =====================================================================
 def main() -> int:
-    logger.info("=" * 60)
-    logger.info("🚀 DPO 数据合成全量集成测试")
-    logger.info(f"  项目根目录: {_PROJECT_ROOT}")
-    logger.info(f"  Python: {sys.version}")
-    logger.info("=" * 60)
+    log.info("=" * 60)
+    log.info("🚀 DPO 数据合成全量集成测试")
+    log.info(f"  项目根目录: {_PROJECT_ROOT}")
+    log.info(f"  Python: {sys.version}")
+    log.info("=" * 60)
 
     # ── 0. 环境检查 ──
     test_env()
@@ -435,22 +434,22 @@ def main() -> int:
         _check_validator_stats(pipeline_ctx)
 
     # ── 汇总 ──
-    logger.info("")
-    logger.info("=" * 60)
-    logger.info("测试结果汇总")
-    logger.info("=" * 60)
+    log.info("")
+    log.info("=" * 60)
+    log.info("测试结果汇总")
+    log.info("=" * 60)
     for name, ok, detail in RESULTS:
         status = "✅" if ok else "❌"
-        logger.info("  %s %s%s", status, name, f"  ({detail})" if detail else "")
+        log.info("  %s %s%s", status, name, f"  ({detail})" if detail else "")
 
-    logger.info("")
-    logger.info("通过: %d/%d, 失败: %d/%d", PASS, PASS + FAIL, FAIL, PASS + FAIL)
+    log.info("")
+    log.info("通过: %d/%d, 失败: %d/%d", PASS, PASS + FAIL, FAIL, PASS + FAIL)
 
     if FAIL == 0:
-        logger.info("🎉 全量集成测试全部通过!")
+        log.info("🎉 全量集成测试全部通过!")
         return 0
     else:
-        logger.error("⚠️  存在 %d 个失败项，请检查远端日志", FAIL)
+        log.error("⚠️  存在 %d 个失败项，请检查远端日志", FAIL)
         return 1
 
 

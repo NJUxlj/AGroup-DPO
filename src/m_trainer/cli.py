@@ -19,15 +19,16 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import logging
 import os
 import subprocess
 import sys
 from pathlib import Path
 
+from utils.logger import CustomLogger
+
 from .custom_trainer import CustomTrainer
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 # 可用的自定义后端
 CUSTOM_BACKENDS = ["deepspeed", "fsdp", "accelerate", "megatron"]
@@ -39,7 +40,7 @@ ALL_BACKENDS = ["llamafactory"] + CUSTOM_BACKENDS
 def _train_llamafactory(config_path: str) -> int:
     """委托给 LLaMA-Factory CLI 执行训练。"""
     if not Path(config_path).exists():
-        logger.error("Config file not found: %s", config_path)
+        log.error("Config file not found: %s", config_path)
         return 1
 
     # 使用当前 Python 解释器对应的 llamafactory-cli，避免 PATH 问题
@@ -53,7 +54,7 @@ def _train_llamafactory(config_path: str) -> int:
     env = os.environ.copy()
     env["PATH"] = py_bin + os.pathsep + env.get("PATH", "")
 
-    logger.info("Delegating to %s train %s", lf_cli, config_path)
+    log.info("Delegating to %s train %s", lf_cli, config_path)
     cmd = [lf_cli, "train", config_path]
     result = subprocess.run(cmd, env=env)
     return result.returncode
@@ -62,10 +63,10 @@ def _train_llamafactory(config_path: str) -> int:
 def _train_custom(config_path: str, backend: str) -> int:
     """使用 CustomTrainer + 自定义分布式后端执行训练。"""
     if not Path(config_path).exists():
-        logger.error("Config file not found: %s", config_path)
+        log.error("Config file not found: %s", config_path)
         return 1
 
-    logger.info("Using custom backend: %s", backend)
+    log.info("Using custom backend: %s", backend)
     trainer = CustomTrainer.from_yaml(config_path)
     # 覆盖配置中的后端选择（CLI 参数优先）
     trainer.cfg.distributed_backend = backend
@@ -118,14 +119,12 @@ def main(args: list[str] | None = None) -> int:
 
     parsed = parser.parse_args(args)
 
-    logging.basicConfig(
-        level=logging.DEBUG if parsed.verbose else logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+    CustomLogger.configure(
+        level="DEBUG" if parsed.verbose else "INFO",
     )
 
-    logger.info("Training config: %s", parsed.config)
-    logger.info("Backend: %s", parsed.backend)
+    log.info("Training config: %s", parsed.config)
+    log.info("Backend: %s", parsed.backend)
 
     if parsed.backend == "llamafactory":
         return _train_llamafactory(parsed.config)

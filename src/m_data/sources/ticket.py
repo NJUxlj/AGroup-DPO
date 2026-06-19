@@ -6,7 +6,7 @@ M02 § 3.1: 从工单系统导出"合规问答"子集。
 
 import hashlib
 import json
-import logging
+from utils.logger import CustomLogger
 import os
 from datetime import datetime
 from pathlib import Path
@@ -14,7 +14,7 @@ from typing import Iterator
 
 from m_data.sources.base import DataSource, RawRecord
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 class TicketSource(DataSource):
@@ -58,7 +58,7 @@ class TicketSource(DataSource):
                     if 0 < limit <= count:
                         return
             except Exception as e:
-                logger.warning("Failed to parse ticket file %s: %s", file_path, e)
+                log.warning("Failed to parse ticket file %s: %s", file_path, e)
 
     def _iter_files(self) -> Iterator[Path]:
         if self._data_path.is_file():

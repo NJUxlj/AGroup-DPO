@@ -8,15 +8,16 @@
 from __future__ import annotations
 
 import importlib
-import logging
 from typing import TYPE_CHECKING
+
+from utils.logger import CustomLogger
 
 from .registry import BACKEND_REGISTRY
 
 if TYPE_CHECKING:
     from .backends.base import DistributedBackend, TrainerConfig
 
-logger = logging.getLogger(__name__)
+log = CustomLogger.get_logger(__name__)
 
 
 def build_backend(config: "TrainerConfig") -> "DistributedBackend":
@@ -64,5 +65,5 @@ def build_backend(config: "TrainerConfig") -> "DistributedBackend":
         )
 
     backend_cls = getattr(module, cls_name)
-    logger.info("Built backend: %s → %s.%s", name, module_path, cls_name)
+    log.info("Built backend: %s → %s.%s", name, module_path, cls_name)
     return backend_cls()
