@@ -9,6 +9,7 @@ milvus_data/
 
 # Virtual environments
 .venv/
+.venv-eval/
 venv/
 
 # IDE
