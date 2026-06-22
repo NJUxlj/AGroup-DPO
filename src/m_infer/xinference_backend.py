@@ -42,7 +42,7 @@ class XinferenceBackend(InferBackend):
             **kwargs:
                 server_endpoint: xinference 服务地址（默认 http://127.0.0.1:9997）
                 model_uid: 已注册的模型 UID（若提供则跳过注册步骤）
-                model_name: 注册时的模型名（默认 "insurance-dpo"）
+                model_name: 注册时的模型名（默认 "qwen2_5_insurance"，对齐 M05 § 3.3）
         """
         server_endpoint = kwargs.get("server_endpoint", "http://127.0.0.1:9997")
         self._endpoint = server_endpoint.rstrip("/")
@@ -58,7 +58,7 @@ class XinferenceBackend(InferBackend):
             return
 
         # 注册新模型
-        model_name = kwargs.get("model_name", "insurance-dpo")
+        model_name = kwargs.get("model_name", "qwen2_5_insurance")
         log.info(
             "xinference registering model: path=%s, endpoint=%s",
             model_path, self._endpoint,

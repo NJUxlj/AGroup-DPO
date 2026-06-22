@@ -6,6 +6,7 @@
 
 ```
 m_eval/
+├── config.py      # configs/eval.yaml 配置加载
 ├── metrics.py     # accuracy_score / bleu_4_score / rouge_l_score
 ├── latency.py     # LatencyStat + aggregate_latency (p50/p95/p99)
 ├── reporter.py    # EvalReporter（JSON + Markdown 双格式）
@@ -25,6 +26,10 @@ refs  = ["参考答案1", "参考答案2"]
 acc   = accuracy_score(preds, refs)   # 分类题精确匹配 / 开放题归一化比对
 bleu  = bleu_4_score(preds, refs)     # sacrebleu BLEU-4 (0-1)
 rouge = rouge_l_score(preds, refs)    # ROUGE-L F-measure (0-1)
+
+# 带样本元数据：answer_type=choice / judge_required=true 时自动分支
+samples = [{"question": "...", "answer_type": "open", "judge_required": True}]
+acc = accuracy_score(preds, refs, samples=samples, judge_backend=backend)
 ```
 
 ### 2. 延迟统计
@@ -80,23 +85,56 @@ json_path, md_path = reporter.write("reports/eval_report")
 
 ```bash
 # 单数据集评测
-python -m m_eval.cli \
+copaw-dpo evaluate \
     --model merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
     --eval-data data/eval/medical_qa_1000.jsonl \
-    --output reports/eval_report
+    --output reports/eval_report_dpo_v1.2
 
 # 批量评测（目录下所有 .jsonl）
-python -m m_eval.cli \
+copaw-dpo evaluate \
     --model merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
     --eval-data data/eval/ \
-    --output reports/eval_report
+    --output reports/eval_report_dpo_v1.2
+
+# 配置驱动多评测集（读取 configs/eval.yaml 中的 datasets / 采样参数）
+copaw-dpo evaluate \
+    --config configs/eval.yaml \
+    --model merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
+    --output reports/eval_report_dpo_v1.2
+
+# baseline 对比（加载已有 baseline 报告 JSON）
+copaw-dpo evaluate \
+    --config configs/eval.yaml \
+    --model merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
+    --output reports/eval_report_dpo_v1.2 \
+    --baseline-report reports/eval_report_baseline_v0.json
+```
+
+## 配置
+
+```yaml
+# configs/eval.yaml
+eval:
+  output_dir: reports/
+  max_new_tokens: 256
+  temperature: 0.3
+  datasets:
+    - name: medical_qa_1000
+      path: data/eval/medical_qa_1000.jsonl
+    - name: insurance_qa_500
+      path: data/eval/insurance_qa_500.jsonl
+    - name: alpaca_zh_200
+      path: data/eval/alpaca_zh_200.jsonl
+  thresholds:
+    bleu_4: 0.30
+    rouge_l: 0.45
 ```
 
 ## 评测指标说明
 
 | 指标 | 计算方式 | 适用场景 |
 |------|----------|----------|
-| Accuracy | 分类题：正则抽取选项 + 严格匹配；开放题：归一化文本比对 | 客观题 / 短答案 |
+| Accuracy | 分类题：正则抽取选项 + 严格匹配；开放题：`judge_required=true` 时用 LLM-as-Judge，否则归一化文本比对 | 客观题 / 开放题 |
 | BLEU-4 | `sacrebleu.corpus_bleu`（tokenized 13a + brevity penalty） | n-gram 重合度 |
 | ROUGE-L | `rouge-score` ROUGE-L（LCS based, mean across samples） | 最长公共子序列重合度 |
 | Latency | p50/p95/p99 first-token + total + throughput | 性能验收 |
@@ -105,7 +143,7 @@ python -m m_eval.cli \
 
 - **BLEU-4 短文本**：参考答案 < 4 tokens 时返回 0.0（无法计算 4-gram）
 - **ROUGE-L 中文**：`rouge-score` 默认 tokenizer 按空格分词，中文需先用 `jieba` 预处理
-- **开放式问答 Accuracy**：当前使用归一化文本比对，大评测集建议配合 LLM-as-Judge
+- **LLM-as-Judge**：`judge_required=true` 的样本会额外调用推理后端判定，大评测集耗时显著增加
 
 ## 评测数据集
 
@@ -118,6 +156,18 @@ python -m m_eval.cli \
 
 | 数据集 | 样本量 | 用途 |
 |--------|--------|------|
-| `medical_qa_1000.jsonl` | 1000（当前 15 条样例） | 主评测集 |
-| `insurance_qa_500.jsonl` | 500（当前 10 条样例） | 业务回归 |
-| `alpaca_zh_200.jsonl` | 200（当前 8 条样例） | 防退化 |
+| `medical_qa_1000.jsonl` | 1000 | 主评测集（CMB-Exam 选择题 holdout） |
+| `insurance_qa_500.jsonl` | 500 | 业务回归（FAQ/工单 holdout + 合成尾部） |
+| `alpaca_zh_200.jsonl` | 200 | 防退化（ChineseAlpacaEval + GPT-4 参考） |
+
+### 重建评测集
+
+```bash
+# 需 curl；医疗集从 hf-mirror 拉取 CMB 源文件
+python scripts/build_eval_datasets.py
+
+# 仅重建某一类
+python scripts/build_eval_datasets.py --only medical
+```
+
+源数据缓存于 `data/eval/sources/`，详见 `scripts/build_eval_datasets.py` 顶部说明。

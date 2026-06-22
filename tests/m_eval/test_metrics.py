@@ -53,6 +53,27 @@ class TestAccuracy:
         )
         assert acc == 0.5
 
+    def test_judge_required_with_judge_fn(self):
+        samples = [
+            {"question": "Q1", "answer_type": "open", "judge_required": True},
+        ]
+
+        def always_correct(q, p, r):
+            return True
+
+        acc = accuracy_score(
+            ["any answer"],
+            ["reference"],
+            samples=samples,
+            judge_fn=always_correct,
+        )
+        assert acc == 1.0
+
+    def test_answer_type_choice(self):
+        samples = [{"answer_type": "choice"}]
+        acc = accuracy_score(["答案是 B"], ["B"], samples=samples)
+        assert acc == 1.0
+
 
 class TestBleu4:
     def test_identical(self):

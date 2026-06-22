@@ -79,12 +79,22 @@ copaw-dpo data --config configs/data/insurance_dpo_gen.yaml
 copaw-dpo data --config configs/data/insurance_dpo_gen.yaml --dry-run --verbose
 
 # 推理
-copaw-dpo infer --model merged_models/qwen_dpo_v1 --prompts "保险等待期是什么？"
+copaw-dpo infer --backend vllm --model merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
+    --prompts "保险等待期是什么？"
 
-# 评测
-copaw-dpo evaluate --model merged_models/qwen_dpo_v1 \
-    --eval-data data/eval/insurance_qa_500.jsonl \
-    --output reports/eval_report
+# 推理 HTTP 服务（与司内 RAG 端对接，改 configs/infer.yaml 即可切换 vLLM ↔ xinference）
+copaw-dpo infer --config configs/infer.yaml --host 0.0.0.0 --port 8080
+
+# 评测（单数据集）
+copaw-dpo evaluate --model merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
+    --eval-data data/eval/medical_qa_1000.jsonl \
+    --output reports/eval_report_dpo_v1.2
+
+# 评测（配置驱动多数据集 + baseline 对比）
+copaw-dpo evaluate --config configs/eval.yaml \
+    --model merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
+    --output reports/eval_report_dpo_v1.2 \
+    --baseline-report reports/eval_report_baseline_v0.json
 
 # 合并 LoRA
 copaw-dpo merge --base Qwen/Qwen2.5-1.5B-Instruct \
@@ -150,22 +160,77 @@ FORCE_TORCHRUN=1 CUDA_VISIBLE_DEVICES=0,1 llamafactory-cli train \
 
 ### 推理
 
+**Python API**（编程调用）：
+
 ```python
 from m_infer import build_infer_backend, InferRequest
 
 backend = build_infer_backend("vllm", "merged_models/qwen2_5_1_5b_insurance_dpo_v1.2")
 resp = backend.infer(InferRequest(prompt="保险等待期是什么？", max_new_tokens=128))
 print(resp.text)
+backend.shutdown()
 ```
 
+**批量 prompt 推理**：
+
+```bash
+copaw-dpo infer --backend vllm --model merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
+    --prompts "重疾险等待期内确诊是否赔付？" "什么是重大疾病保险？"
+```
+
+**HTTP 推理服务**（与司内 RAG 端对接，详见 [M05 方案](docs/项目分阶段方案/M05_推理加速与评测.md)）：
+
+```bash
+# vLLM 模式（默认）
+copaw-dpo infer --config configs/infer.yaml --host 0.0.0.0 --port 8080
+
+# 切换到 xinference：仅修改 configs/infer.yaml 中 infer.backend 字段，无需改业务代码
+# sed -i 's/vllm/xinference/' configs/infer.yaml
+copaw-dpo infer --config configs/infer.yaml --host 0.0.0.0 --port 8080
+```
+
+服务启动后，司内 RAG 端将「答案生成器」指向 `http://<节点>:8080/v1/insurance/qa` 即可。请求可携带 `X-Request-Id` 头用于链路追踪。
+
+```bash
+curl -X POST http://127.0.0.1:8080/v1/insurance/qa \
+  -H "Content-Type: application/json" \
+  -H "X-Request-Id: $(uuidgen)" \
+  -d '{"user_query": "保险等待期内确诊是否赔付？", "context_docs": [], "max_new_tokens": 256, "temperature": 0.3}'
+```
+
+更多细节见 [`src/m_infer/README.md`](src/m_infer/README.md)。
+
 ### 评测
+
+**单评测集**：
 
 ```bash
 copaw-dpo evaluate \
     --model merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
-    --eval-data data/eval/insurance_qa_500.jsonl \
-    --output reports/eval_report
+    --eval-data data/eval/medical_qa_1000.jsonl \
+    --output reports/eval_report_dpo_v1.2
 ```
+
+**多评测集目录**（`data/eval/` 下所有 `.jsonl`）：
+
+```bash
+copaw-dpo evaluate \
+    --model merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
+    --eval-data data/eval/ \
+    --output reports/eval_report_dpo_v1.2
+```
+
+**配置驱动 + baseline 对比**（读取 `configs/eval.yaml` 中的数据集与采样参数）：
+
+```bash
+copaw-dpo evaluate \
+    --config configs/eval.yaml \
+    --model merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
+    --output reports/eval_report_dpo_v1.2 \
+    --baseline-report reports/eval_report_baseline_v0.json
+```
+
+产出 `reports/eval_report_dpo_v1.2.json` 与 `.md` 双格式报告，含 Accuracy / BLEU-4 / ROUGE-L 及 p50/p95/p99 推理延迟。更多细节见 [`src/m_eval/README.md`](src/m_eval/README.md)。
 
 ---
 
@@ -345,6 +410,8 @@ AGroup-DPO/
 │   ├── m_eval/             # 评测
 │   └── m_merge/            # 模型合并
 ├── configs/                # YAML 配置
+│   ├── infer.yaml          #   推理后端切换（vLLM / xinference）
+│   ├── eval.yaml           #   评测数据集与阈值
 │   ├── data/               #   数据流水线配置
 │   ├── backends/           #   分布式后端配置
 │   └── deepspeed/          #   DeepSpeed ZeRO 配置

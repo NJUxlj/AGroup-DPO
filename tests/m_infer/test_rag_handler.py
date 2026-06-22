@@ -187,6 +187,17 @@ class TestRAGEndpoint:
                      "total_latency_ms", "model_version", "request_id"]:
             assert key in data, f"Missing key: {key}"
 
+    def test_x_request_id_header(self, client):
+        """司内 RAG 端传入 X-Request-Id 时应原样回传（M05 § 3.5）。"""
+        req_id = "rag-trace-abc-123"
+        resp = client.post(
+            "/v1/insurance/qa",
+            json={"user_query": "test"},
+            headers={"X-Request-Id": req_id},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["request_id"] == req_id
+
 
 # ---- 4. create_rag_router ----
 

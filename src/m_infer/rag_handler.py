@@ -14,7 +14,7 @@ import time
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from m_infer.base import InferBackend, InferRequest
@@ -87,12 +87,16 @@ def create_rag_router(
     router = APIRouter(tags=["insurance-qa"])
 
     @router.post("/v1/insurance/qa", response_model=RAGResponse)
-    async def insurance_qa(req: RAGRequest):
+    async def insurance_qa(
+        req: RAGRequest,
+        x_request_id: Optional[str] = Header(default=None, alias="X-Request-Id"),
+    ):
         """保险问答接口 —— 司内 RAG 端的答案生成器。
 
         接收 RAG 检索到的上下文文档 + 用户问题，返回模型生成的答案。
+        支持司内 RAG 端传入 X-Request-Id 请求头用于链路追踪（M05 § 3.5）。
         """
-        request_id = str(uuid.uuid4())
+        request_id = x_request_id or str(uuid.uuid4())
 
         # 构造 prompt：若有上下文文档则拼接为 RAG 格式
         if req.context_docs:

@@ -7,13 +7,14 @@
 ```
 m_infer/
 ├── base.py            # InferBackend ABC + InferRequest/InferResponse
+├── config.py          # configs/infer.yaml 配置加载
 ├── registry.py        # INFER_REGISTRY 注册表
 ├── factory.py         # build_infer_backend() 工厂函数
 ├── vllm_backend.py    # VLLMBackend（PagedAttention + continuous batching）
 ├── xinference_backend.py  # XinferenceBackend（HTTP /v1/completions）
 ├── server.py          # FastAPI 推理服务（/v1/insurance/qa + /health）
 ├── rag_handler.py     # RAG 对接路由 + Pydantic 模型
-└── cli.py             # 命令行入口
+└── cli.py             # 命令行入口（批量推理 / HTTP 服务）
 ```
 
 ## 快速开始
@@ -41,19 +42,28 @@ backend.shutdown()
 ### 2. 命令行推理
 
 ```bash
-# vLLM 模式
-python -m m_infer.cli --backend vllm --model-path merged_models/qwen2_5_1_5b_insurance_dpo_v1.2
+# 批量 prompt 推理（vLLM）
+copaw-dpo infer --backend vllm --model merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
+    --prompts "重疾险等待期内确诊是否赔付？"
 
-# 切换到 xinference（仅修改 --backend 参数）
-python -m m_infer.cli --backend xinference --model-path merged_models/...
+# 配置驱动（CLI 参数可覆盖 yaml 中的字段）
+copaw-dpo infer --config configs/infer.yaml \
+    --prompts "保险等待期是什么？"
 ```
 
 ### 3. 启动 HTTP 推理服务（与司内 RAG 端对接）
 
 ```bash
+# 推荐：配置驱动（M05 § 7.4）
+copaw-dpo infer --config configs/infer.yaml --host 0.0.0.0 --port 8080
+
+# 切换到 xinference：仅修改 configs/infer.yaml 中 infer.backend 字段
+# sed -i 's/vllm/xinference/' configs/infer.yaml
+copaw-dpo infer --config configs/infer.yaml --host 0.0.0.0 --port 8080
+
+# 或直接指定参数
 python -m m_infer.server \
-    --backend vllm \
-    --model-path merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
+    --config configs/infer.yaml \
     --host 0.0.0.0 \
     --port 8080
 ```
@@ -67,6 +77,7 @@ curl http://127.0.0.1:8080/health
 # 保险问答
 curl -X POST http://127.0.0.1:8080/v1/insurance/qa \
   -H "Content-Type: application/json" \
+  -H "X-Request-Id: rag-trace-001" \
   -d '{
     "user_query": "保险等待期内确诊是否赔付？",
     "context_docs": [
@@ -128,6 +139,8 @@ infer:
   "temperature": 0.3
 }
 ```
+
+请求头可选 `X-Request-Id`（司内 RAG 端链路追踪）；未提供时服务自动生成 UUID 并在响应中回传。
 
 ### 响应
 

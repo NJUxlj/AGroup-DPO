@@ -45,8 +45,8 @@ copaw-dpo — AGroup DPO 统一命令行工具
   copaw-dpo train --config configs/train_dpo_qwen2_5_1_5b_insurance.yaml
   copaw-dpo train --config configs/my_train.yaml --backend deepspeed
   copaw-dpo data --config configs/data/insurance_dpo_gen.yaml --dry-run
-  copaw-dpo infer --model merged_models/... --prompts "保险等待期是什么？"
-  copaw-dpo evaluate --model merged_models/... --eval-data data/eval/insurance_qa_500.jsonl
+    copaw-dpo infer --config configs/infer.yaml --host 0.0.0.0 --port 8080
+    copaw-dpo evaluate --config configs/eval.yaml --model merged_models/... --output reports/eval_report_dpo_v1.2
   copaw-dpo merge --base Qwen/Qwen2.5-1.5B-Instruct --adapter saves/.../lora --output merged_models/...
 
 运行 copaw-dpo <command> --help 查看各命令的详细参数。
