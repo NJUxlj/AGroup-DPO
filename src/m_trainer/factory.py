@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from utils.logger import CustomLogger
 
@@ -67,3 +67,22 @@ def build_backend(config: "TrainerConfig") -> "DistributedBackend":
     backend_cls = getattr(module, cls_name)
     log.info("Built backend: %s → %s.%s", name, module_path, cls_name)
     return backend_cls()
+
+
+def setup_distributed(
+    model: "torch.nn.Module",
+    config: "TrainerConfig",
+) -> tuple["torch.nn.Module", Any, "DistributedBackend"]:
+    """M04 提供的分布式包装入口（M03 § 7.4 / M04 § 3.4 契约）。
+
+    optimizer 由 backend 内部创建（DeepSpeed engine / FSDP AdamW 等），
+    业务方应传入 optimizer=None 语义——本函数不接受外部 optimizer。
+
+    Returns:
+        (wrapped_model, wrapped_optimizer, backend)
+    """
+    import torch
+
+    backend = build_backend(config)
+    wrapped_model, wrapped_optimizer = backend.init(model, optimizer=None, config=config)
+    return wrapped_model, wrapped_optimizer, backend

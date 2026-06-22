@@ -57,6 +57,15 @@ def build_zero3_config(cfg: TrainerConfig) -> dict[str, Any]:
             * cfg.gradient_accumulation_steps
             * max(cfg.world_size, 1)
         ),
+        "optimizer": {
+            "type": "AdamW",
+            "params": {
+                "lr": cfg.learning_rate,
+                "betas": [0.9, 0.999],
+                "eps": 1e-8,
+                "weight_decay": 0.0,
+            },
+        },
     }
 
     # 合并用户自定义的 deepspeed 配置
@@ -193,3 +202,6 @@ class DeepSpeedBackend(DistributedBackend):
     def zero_grad(self) -> None:
         if self._engine is not None:
             self._engine.zero_grad()
+
+    def handles_gradient_accumulation(self) -> bool:
+        return True

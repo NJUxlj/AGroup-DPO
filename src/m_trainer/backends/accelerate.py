@@ -59,7 +59,6 @@ class AccelerateBackend(DistributedBackend):
             )
 
         self._accelerator = Accelerator(
-            gradient_accumulation_steps=config.gradient_accumulation_steps,
             mixed_precision="bf16" if config.bf16 else "no",
         )
 

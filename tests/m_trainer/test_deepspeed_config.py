@@ -13,6 +13,7 @@ class TestDeepSpeedConfig:
             per_device_batch_size=2,
             gradient_accumulation_steps=8,
             world_size=1,
+            learning_rate=1e-4,
         )
         ds = build_zero3_config(cfg)
         assert ds["zero_optimization"]["stage"] == 3
@@ -20,6 +21,7 @@ class TestDeepSpeedConfig:
         assert ds["train_micro_batch_size_per_gpu"] == 2
         assert ds["gradient_accumulation_steps"] == 8
         assert ds["train_batch_size"] == 2 * 8 * 1
+        assert ds["optimizer"]["params"]["lr"] == 1e-4
 
     def test_build_config_with_custom(self):
         """自定义 deepspeed_config 被合并。"""

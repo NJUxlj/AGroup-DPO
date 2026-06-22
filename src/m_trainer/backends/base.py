@@ -135,3 +135,11 @@ class DistributedBackend(ABC):
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement zero_grad()"
         )
+
+    def handles_gradient_accumulation(self) -> bool:
+        """后端是否在内部处理 gradient accumulation。
+
+        DeepSpeed 在 engine 内按 gradient_accumulation_steps 累积；
+        其他后端默认由 CustomTrainer 手动累积。
+        """
+        return False

@@ -1,5 +1,5 @@
 """
-CustomTrainer — 自研训练器 (M04)
+CustomTrainer — 自研训练器 (M03/M04)
 
 封装完整的训练流程：模型加载 → 数据加载 → 分布式后端初始化 → 训练循环 → checkpoint。
 支持 SFT 和 DPO 两种训练阶段，与 LLaMA-Factory 的训练配置格式兼容。
@@ -22,17 +22,31 @@ from typing import Any, Optional
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import yaml
-from torch.utils.data import DataLoader, Dataset, IterableDataset
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
+from torch.utils.data import DataLoader, Dataset
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from utils.logger import CustomLogger
 
 from .backends.base import TrainerConfig
 from .backends.optimizer_factory import AdamWFactory
+from .callbacks import MetricsLogger, StepMetrics, compute_grad_norm, current_gpu_mem_gb
 from .factory import build_backend
 
 log = CustomLogger.get_logger(__name__)
+
+IM_END = ""
+QWEN_DEFAULT_SYSTEM = "你是AI财保助理，需严格依据条款作答。"
+
+# LLaMA-Factory YAML 字段 → TrainingConfig 字段
+_YAML_FIELD_ALIASES: dict[str, str] = {
+    "per_device_train_batch_size": "per_device_batch_size",
+    "dpo_beta": "dpo_beta",
+    "pref_beta": "dpo_beta",
+    "dpo_loss_type": "dpo_loss_type",
+    "pref_loss": "dpo_loss_type",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -42,14 +56,12 @@ log = CustomLogger.get_logger(__name__)
 
 @dataclass
 class TrainingConfig:
-    """完整训练配置，兼容 LLaMA-Factory YAML 格式。
-
-    从 YAML 文件加载，包含模型路径、数据集、训练超参等所有必要信息。
-    """
+    """完整训练配置，兼容 LLaMA-Factory YAML 格式。"""
 
     # ---- 模型 ----
     model_name_or_path: str = ""
     trust_remote_code: bool = False
+    ref_model_name_or_path: str = ""
 
     # ---- 数据 ----
     dataset: str = ""
@@ -63,9 +75,14 @@ class TrainingConfig:
     # ---- LoRA ----
     finetuning_type: str = "lora"  # lora / full
     lora_target: str = "q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj"
-    lora_rank: int = 8
-    lora_alpha: int = 16
+    lora_rank: int = 16
+    lora_alpha: int = 32
     lora_dropout: float = 0.05
+
+    # ---- DPO ----
+    dpo_beta: float = 0.1
+    dpo_loss_type: str = "sigmoid"
+    dpo_max_prompt_length: int = 1024
 
     # ---- TrainerConfig 字段 (内嵌) ----
     distributed_backend: str = "deepspeed"
@@ -82,6 +99,12 @@ class TrainingConfig:
     save_total_limit: int = 2
     warmup_ratio: float = 0.05
     lr_scheduler_type: str = "cosine"
+
+    # ---- 可观测 (M03 § 3.6) ----
+    report_to: str = "tensorboard"  # none / tensorboard / wandb / all
+    logging_dir: str = ""
+    wandb_project: str = "agroup-dpo"
+    run_name: str = ""
 
     # ---- 后端专属配置 ----
     deepspeed_config: dict[str, Any] = field(default_factory=dict)
@@ -103,6 +126,67 @@ class TrainingConfig:
             fsdp_config=self.fsdp_config,
             megatron_config=self.megatron_config,
         )
+
+
+def _load_deepspeed_config(raw: dict[str, Any]) -> dict[str, Any]:
+    """从 YAML 顶层 deepspeed 字段加载 ZeRO 配置。"""
+    ds_path = raw.get("deepspeed")
+    if not ds_path:
+        return {}
+    path = Path(ds_path)
+    if not path.is_file():
+        log.warning("DeepSpeed config not found: %s", ds_path)
+        return {}
+    with open(path, encoding="utf-8") as f:
+        loaded = json.load(f)
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _normalize_yaml_config(raw: dict[str, Any]) -> dict[str, Any]:
+    """将 LLaMA-Factory YAML 规范化为 TrainingConfig 字段。"""
+    normalized: dict[str, Any] = {}
+
+    for key, value in raw.items():
+        if key == "trainer" and isinstance(value, dict):
+            normalized.update(value)
+            continue
+        if key == "deepspeed":
+            continue
+        target = _YAML_FIELD_ALIASES.get(key, key)
+        normalized[target] = value
+
+    ds_cfg = _load_deepspeed_config(raw)
+    if ds_cfg:
+        normalized["deepspeed_config"] = ds_cfg
+
+    report_to = normalized.get("report_to")
+    if isinstance(report_to, list):
+        normalized["report_to"] = ",".join(str(item) for item in report_to)
+
+    return normalized
+
+
+def resolve_dataset_path(dataset_dir: str, dataset_name: str) -> str:
+    """解析数据集路径，优先读取 dataset_info.json（M02/M03 契约）。"""
+    info_path = os.path.join(dataset_dir, "dataset_info.json")
+    if os.path.isfile(info_path):
+        with open(info_path, encoding="utf-8") as f:
+            info = json.load(f)
+        entry = info.get(dataset_name)
+        if isinstance(entry, dict):
+            file_name = entry.get("file_name", f"{dataset_name}.jsonl")
+            candidate = os.path.join(dataset_dir, file_name)
+            if os.path.isfile(candidate):
+                return candidate
+
+    direct = os.path.join(dataset_dir, f"{dataset_name}.jsonl")
+    if os.path.isfile(direct):
+        return direct
+
+    raise FileNotFoundError(
+        f"Dataset '{dataset_name}' not found under {dataset_dir}. "
+        f"Expected dataset_info.json mapping or {direct}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -135,43 +219,147 @@ class JSONLinesDataset(Dataset):
         return self.samples[idx]
 
 
+def _format_qwen_sft_text(
+    instruction: str,
+    inp: str,
+    output: str,
+    system: str = QWEN_DEFAULT_SYSTEM,
+) -> tuple[str, str]:
+    """返回 (prompt, full_text)，prompt 部分在 SFT loss 中 mask。"""
+    user_content = f"{instruction}\n{inp}" if inp else instruction
+    prompt = (
+        f"<|im_start|>system\n{system}{IM_END}\n"
+        f"<|im_start|>user\n{user_content}{IM_END}\n"
+        f"<|im_start|>assistant\n"
+    )
+    return prompt, prompt + output + IM_END
+
+
 def _sft_collate(batch: list[dict], tokenizer, cutoff_len: int) -> dict[str, torch.Tensor]:
-    """将 SFT 样本 tokenize 为 input_ids + labels。"""
-    texts = []
+    """将 SFT 样本 tokenize 为 input_ids + labels（prompt 部分 mask 为 -100）。"""
+    input_ids_list: list[list[int]] = []
+    labels_list: list[list[int]] = []
+
     for item in batch:
         instruction = item.get("instruction", "")
         inp = item.get("input", "")
         output = item.get("output", "")
-        if inp:
-            prompt = f"<|im_start|>system\n你是AI财保助理。<|im_end|>\n<|im_start|>user\n{instruction}\n{inp}<|im_end|>\n<|im_start|>assistant\n"
-        else:
-            prompt = f"<|im_start|>system\n你是AI财保助理。<|im_end|>\n<|im_start|>user\n{instruction}<|im_end|>\n<|im_start|>assistant\n"
-        texts.append(prompt + output + "<|im_end|>")
+        system = item.get("system", QWEN_DEFAULT_SYSTEM)
+        prompt, full_text = _format_qwen_sft_text(instruction, inp, output, system)
 
-    enc = tokenizer(texts, truncation=True, max_length=cutoff_len, padding=True, return_tensors="pt")
-    enc["labels"] = enc["input_ids"].clone()
-    return enc
+        prompt_len = len(tokenizer(prompt, add_special_tokens=False)["input_ids"])
+        encoded = tokenizer(
+            full_text,
+            truncation=True,
+            max_length=cutoff_len,
+            add_special_tokens=False,
+        )
+        ids = encoded["input_ids"]
+        labels = ids.copy()
+        mask_len = min(prompt_len, len(labels))
+        for i in range(mask_len):
+            labels[i] = -100
+
+        input_ids_list.append(ids)
+        labels_list.append(labels)
+
+    max_len = max(len(x) for x in input_ids_list)
+    pad_id = tokenizer.pad_token_id or tokenizer.eos_token_id
+
+    input_ids = torch.full((len(batch), max_len), pad_id, dtype=torch.long)
+    labels = torch.full((len(batch), max_len), -100, dtype=torch.long)
+    attention_mask = torch.zeros((len(batch), max_len), dtype=torch.long)
+
+    for i, (ids, lbls) in enumerate(zip(input_ids_list, labels_list)):
+        input_ids[i, : len(ids)] = torch.tensor(ids, dtype=torch.long)
+        labels[i, : len(lbls)] = torch.tensor(lbls, dtype=torch.long)
+        attention_mask[i, : len(ids)] = 1
+
+    return {"input_ids": input_ids, "labels": labels, "attention_mask": attention_mask}
 
 
-def _dpo_collate(batch: list[dict], tokenizer, cutoff_len: int) -> dict[str, torch.Tensor]:
-    """将 DPO 样本 tokenize 为 DPO 训练所需字段。"""
-    prompts, chosens, rejecteds = [], [], []
+def _build_dpo_sequence(
+    prompt: str,
+    response: str,
+    tokenizer,
+    cutoff_len: int,
+    max_prompt_length: int,
+) -> tuple[list[int], list[int]]:
+    """构造 DPO 序列：labels 仅在 response token 上保留 id，prompt 部分为 -100。"""
+    prompt_ids = tokenizer(prompt, add_special_tokens=False)["input_ids"]
+    response_ids = tokenizer(response, add_special_tokens=False)["input_ids"]
+    if not response_ids:
+        response_ids = [tokenizer.eos_token_id or 0]
+
+    if len(prompt_ids) > max_prompt_length:
+        prompt_ids = prompt_ids[-max_prompt_length:]
+
+    input_ids = prompt_ids + response_ids
+    labels = [-100] * len(prompt_ids) + response_ids
+
+    if len(input_ids) > cutoff_len:
+        overflow = len(input_ids) - cutoff_len
+        input_ids = input_ids[overflow:]
+        labels = labels[overflow:]
+
+    return input_ids, labels
+
+
+def _dpo_collate(
+    batch: list[dict],
+    tokenizer,
+    cutoff_len: int,
+    max_prompt_length: int,
+) -> dict[str, torch.Tensor]:
+    """将 DPO 样本 tokenize 为 prompt+response 拼接序列。"""
+    chosen_ids_list: list[list[int]] = []
+    chosen_labels_list: list[list[int]] = []
+    rejected_ids_list: list[list[int]] = []
+    rejected_labels_list: list[list[int]] = []
+
     for item in batch:
-        prompts.append(item.get("prompt", ""))
-        chosens.append(item.get("chosen", ""))
-        rejecteds.append(item.get("rejected", ""))
+        prompt = item.get("prompt", "")
+        chosen_ids, chosen_labels = _build_dpo_sequence(
+            prompt, item.get("chosen", ""), tokenizer, cutoff_len, max_prompt_length
+        )
+        rejected_ids, rejected_labels = _build_dpo_sequence(
+            prompt, item.get("rejected", ""), tokenizer, cutoff_len, max_prompt_length
+        )
+        chosen_ids_list.append(chosen_ids)
+        chosen_labels_list.append(chosen_labels)
+        rejected_ids_list.append(rejected_ids)
+        rejected_labels_list.append(rejected_labels)
 
-    p_enc = tokenizer(prompts, truncation=True, max_length=cutoff_len, padding=True, return_tensors="pt")
-    c_enc = tokenizer(chosens, truncation=True, max_length=cutoff_len, padding=True, return_tensors="pt")
-    r_enc = tokenizer(rejecteds, truncation=True, max_length=cutoff_len, padding=True, return_tensors="pt")
+    pad_id = tokenizer.pad_token_id or tokenizer.eos_token_id
+
+    def _pad_sequences(
+        ids_list: list[list[int]],
+        labels_list: list[list[int]],
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        max_len = max(len(x) for x in ids_list)
+        input_ids = torch.full((len(batch), max_len), pad_id, dtype=torch.long)
+        labels = torch.full((len(batch), max_len), -100, dtype=torch.long)
+        attention_mask = torch.zeros((len(batch), max_len), dtype=torch.long)
+        for i, (ids, lbls) in enumerate(zip(ids_list, labels_list)):
+            input_ids[i, : len(ids)] = torch.tensor(ids, dtype=torch.long)
+            labels[i, : len(lbls)] = torch.tensor(lbls, dtype=torch.long)
+            attention_mask[i, : len(ids)] = 1
+        return input_ids, labels, attention_mask
+
+    chosen_input_ids, chosen_labels, chosen_attention_mask = _pad_sequences(
+        chosen_ids_list, chosen_labels_list
+    )
+    rejected_input_ids, rejected_labels, rejected_attention_mask = _pad_sequences(
+        rejected_ids_list, rejected_labels_list
+    )
 
     return {
-        "prompt_input_ids": p_enc["input_ids"],
-        "prompt_attention_mask": p_enc["attention_mask"],
-        "chosen_input_ids": c_enc["input_ids"],
-        "chosen_attention_mask": c_enc["attention_mask"],
-        "rejected_input_ids": r_enc["input_ids"],
-        "rejected_attention_mask": r_enc["attention_mask"],
+        "chosen_input_ids": chosen_input_ids,
+        "chosen_labels": chosen_labels,
+        "chosen_attention_mask": chosen_attention_mask,
+        "rejected_input_ids": rejected_input_ids,
+        "rejected_labels": rejected_labels,
+        "rejected_attention_mask": rejected_attention_mask,
     }
 
 
@@ -181,40 +369,27 @@ def _dpo_collate(batch: list[dict], tokenizer, cutoff_len: int) -> dict[str, tor
 
 
 class CustomTrainer:
-    """自研训练器，封装完整的训练流程。
-
-    支持通过 --backend 在 LLaMA-Factory 与自定义分布式后端之间切换。
-    自定义后端通过 build_backend() 加载 deepspeed / fsdp / accelerate / megatron。
-
-    Usage:
-        trainer = CustomTrainer.from_yaml("configs/my_train.yaml")
-        trainer.train()
-    """
+    """自研训练器，封装完整的训练流程。"""
 
     def __init__(self, config: TrainingConfig):
         self.cfg = config
         self.model: Optional[nn.Module] = None
+        self.ref_model: Optional[nn.Module] = None
         self.tokenizer = None
         self.backend = None
+        self.optimizer: Any = None
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # ---- 工厂方法 ----
 
     @classmethod
     def from_yaml(cls, path: str) -> "CustomTrainer":
-        """从 YAML 配置文件加载训练器。
-
-        YAML 格式兼容 LLaMA-Factory 训练配置，额外字段会被忽略。
-        """
+        """从 YAML 配置文件加载训练器（兼容 LLaMA-Factory 字段名）。"""
         with open(path, encoding="utf-8") as f:
-            raw = yaml.safe_load(f)
+            raw = yaml.safe_load(f) or {}
 
-        # 提取已知字段，忽略未知字段
+        normalized = _normalize_yaml_config(raw)
         known = {f.name for f in TrainingConfig.__dataclass_fields__.values()}
-        kwargs = {k: v for k, v in raw.items() if k in known}
+        kwargs = {k: v for k, v in normalized.items() if k in known}
         return cls(TrainingConfig(**kwargs))
-
-    # ---- 训练入口 ----
 
     def train(self) -> None:
         """执行完整训练流程。"""
@@ -224,16 +399,22 @@ class CustomTrainer:
         log.info("  output: %s", self.cfg.output_dir)
         log.info("=" * 60)
 
+        torch.manual_seed(self.cfg.seed)
+
         self._load_model_and_tokenizer()
         dataloader = self._load_data()
         self._init_backend()
+        dataloader = self.backend.prepare_dataloader(dataloader)  # type: ignore[union-attr]
 
-        self._run_training_loop(dataloader)
+        metrics_logger = MetricsLogger.from_config(self.cfg)
+        metrics_logger.on_train_begin(self.cfg)
+        try:
+            self._run_training_loop(dataloader, metrics_logger)
+        finally:
+            metrics_logger.on_train_end()
 
         self._save_checkpoint("final")
         log.info("Training complete. Model saved to %s", self.cfg.output_dir)
-
-    # ---- 内部方法 ----
 
     def _load_model_and_tokenizer(self) -> None:
         """加载模型和 tokenizer。"""
@@ -252,7 +433,19 @@ class CustomTrainer:
             trust_remote_code=self.cfg.trust_remote_code,
         )
 
-        # 应用 LoRA
+        if self.cfg.stage == "dpo" and self.cfg.finetuning_type != "lora":
+            ref_path = self.cfg.ref_model_name_or_path or self.cfg.model_name_or_path
+            log.info("Loading frozen reference model from %s", ref_path)
+            self.ref_model = AutoModelForCausalLM.from_pretrained(
+                ref_path,
+                torch_dtype=torch_dtype,
+                trust_remote_code=self.cfg.trust_remote_code,
+            )
+            self.ref_model.eval()
+            for param in self.ref_model.parameters():
+                param.requires_grad = False
+            self.ref_model.to(self._device)
+
         if self.cfg.finetuning_type == "lora":
             self._apply_lora()
 
@@ -261,14 +454,14 @@ class CustomTrainer:
         log.info("Model loaded: %s params", sum(p.numel() for p in self.model.parameters()))
 
     def _apply_lora(self) -> None:
-        """对模型应用 LoRA adapter。"""
+        """对模型应用 LoRA adapter（M03 策略 1：DPO 阶段重新注入 LoRA）。"""
         try:
-            from peft import LoraConfig, get_peft_model, TaskType
+            from peft import LoraConfig, TaskType, get_peft_model
         except ImportError:
             log.warning("peft not installed, skipping LoRA")
             return
 
-        target_modules = [m.strip() for m in self.cfg.lora_target.split(",")]
+        target_modules = [m.strip() for m in self.cfg.lora_target.split(",") if m.strip()]
         lora_config = LoraConfig(
             task_type=TaskType.CAUSAL_LM,
             r=self.cfg.lora_rank,
@@ -281,23 +474,25 @@ class CustomTrainer:
 
     def _load_data(self) -> DataLoader:
         """加载训练数据集。"""
-        data_path = os.path.join(self.cfg.dataset_dir, f"{self.cfg.dataset}.jsonl")
-        if not os.path.exists(data_path):
-            data_path = os.path.join(self.cfg.dataset_dir, self.cfg.dataset, "*.jsonl")
-            raise FileNotFoundError(
-                f"Dataset not found at {data_path}. "
-                f"Expected {self.cfg.dataset_dir}/{self.cfg.dataset}.jsonl"
-            )
-
+        data_path = resolve_dataset_path(self.cfg.dataset_dir, self.cfg.dataset)
         dataset = JSONLinesDataset(data_path)
         log.info("Loaded %d samples from %s", len(dataset), data_path)
 
-        collate_fn = _sft_collate if self.cfg.stage == "sft" else _dpo_collate
+        if self.cfg.stage == "sft":
+            collate_fn = lambda b: _sft_collate(b, self.tokenizer, self.cfg.cutoff_len)
+        else:
+            collate_fn = lambda b: _dpo_collate(
+                b,
+                self.tokenizer,
+                self.cfg.cutoff_len,
+                self.cfg.dpo_max_prompt_length,
+            )
+
         return DataLoader(
             dataset,
             batch_size=self.cfg.per_device_batch_size,
             shuffle=True,
-            collate_fn=lambda b: collate_fn(b, self.tokenizer, self.cfg.cutoff_len),
+            collate_fn=collate_fn,
         )
 
     def _init_backend(self) -> None:
@@ -305,7 +500,6 @@ class CustomTrainer:
         trainer_cfg = self.cfg.to_trainer_config()
 
         if self.cfg.distributed_backend == "deepspeed":
-            # DeepSpeed: optimizer 由 engine 内部创建
             optimizer = None
         else:
             optimizer = AdamWFactory().build(
@@ -318,7 +512,7 @@ class CustomTrainer:
             self.model, optimizer, trainer_cfg  # type: ignore[arg-type]
         )
 
-    def _run_training_loop(self, dataloader: DataLoader) -> None:
+    def _run_training_loop(self, dataloader: DataLoader, metrics_logger: MetricsLogger) -> None:
         """主训练循环。"""
         total_steps = (
             self.cfg.max_steps
@@ -327,28 +521,35 @@ class CustomTrainer:
         )
         grad_accum = self.cfg.gradient_accumulation_steps
         warmup_steps = int(total_steps * self.cfg.warmup_ratio)
+        backend_handles_accum = self.backend.handles_gradient_accumulation()  # type: ignore[union-attr]
 
-        # LR scheduler (DeepSpeed 内部管理 LR，跳过 torch scheduler)
+        optimizer_for_scheduler = self.optimizer
+        if optimizer_for_scheduler is None and self.backend is not None:
+            optimizer_for_scheduler = getattr(self.backend, "_optimizer", None)
+
         scheduler = None
-        if self.cfg.distributed_backend != "deepspeed":
-            optimizer_for_scheduler = getattr(self, "optimizer", None)
-            if optimizer_for_scheduler is None and self.backend is not None:
-                optimizer_for_scheduler = getattr(self.backend, "_optimizer", None)
+        if self.cfg.distributed_backend != "deepspeed" and optimizer_for_scheduler is not None:
+            if self.cfg.lr_scheduler_type == "cosine":
+                scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer_for_scheduler, T_max=max(total_steps - warmup_steps, 1)
+                )
 
-            if optimizer_for_scheduler is not None:
-                if self.cfg.lr_scheduler_type == "cosine":
-                    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                        optimizer_for_scheduler, T_max=total_steps
-                    )
-
-        log.info("Training: total_steps=%d, grad_accum=%d, warmup=%d", total_steps, grad_accum, warmup_steps)
+        log.info(
+            "Training: total_steps=%d, grad_accum=%d, warmup=%d, backend_accum=%s",
+            total_steps,
+            grad_accum,
+            warmup_steps,
+            backend_handles_accum,
+        )
 
         global_step = 0
         total_loss = 0.0
+        dpo_margin_sum = 0.0
+        dpo_chosen_sum = 0.0
+        dpo_rejected_sum = 0.0
         t_start = time.perf_counter()
-
-        # Gradient accumulation counter (manual for DeepSpeed)
         accum_step = 0
+        saved_checkpoints: list[str] = []
 
         for epoch in range(int(math.ceil(self.cfg.num_train_epochs))):
             if global_step >= total_steps:
@@ -359,100 +560,229 @@ class CustomTrainer:
                     break
 
                 batch = {k: v.to(self._device) for k, v in batch.items()}
+                batch_size = batch["input_ids"].size(0) if self.cfg.stage == "sft" else batch["chosen_input_ids"].size(0)
+                metrics_logger.record_batch_samples(batch_size)
 
                 if self.cfg.stage == "sft":
-                    loss = self._sft_step(batch)
+                    loss, step_metrics = self._sft_step(batch)
                 else:
-                    loss = self._dpo_step(batch)
+                    loss, step_metrics = self._dpo_step(batch)
+                    dpo_margin_sum += step_metrics.get("reward_margin", 0.0)
+                    dpo_chosen_sum += step_metrics.get("chosen_reward", 0.0)
+                    dpo_rejected_sum += step_metrics.get("rejected_reward", 0.0)
 
-                loss = loss / grad_accum
+                if not backend_handles_accum:
+                    loss = loss / grad_accum
+
                 self.backend.backward(loss)  # type: ignore[union-attr]
                 accum_step += 1
-                total_loss += loss.item()
+                total_loss += loss.item() * (1 if backend_handles_accum else grad_accum)
 
-                if accum_step >= grad_accum:
-                    # Warmup LR
-                    if global_step < warmup_steps and optimizer_for_scheduler is not None:
-                        lr_scale = (global_step + 1) / max(warmup_steps, 1)
-                        for pg in optimizer_for_scheduler.param_groups:
-                            pg["lr"] = self.cfg.learning_rate * lr_scale
+                should_step = backend_handles_accum or accum_step >= grad_accum
+                if not should_step:
+                    continue
 
-                    self.backend.step()  # type: ignore[union-attr]
-                    if scheduler is not None:
-                        scheduler.step()
-                    self.backend.zero_grad()  # type: ignore[union-attr]
-                    accum_step = 0
-                    global_step += 1
+                grad_norm = (
+                    compute_grad_norm(self._trainable_module())
+                    if (global_step + 1) % self.cfg.logging_steps == 0
+                    else None
+                )
 
-                    # Logging
-                    if global_step % self.cfg.logging_steps == 0:
-                        elapsed = time.perf_counter() - t_start
-                        avg_loss = total_loss / (self.cfg.logging_steps * grad_accum)
-                        lr = optimizer_for_scheduler.param_groups[0]["lr"] if optimizer_for_scheduler else self.cfg.learning_rate
-                        log.info(
-                            "Step %d/%d | loss=%.4f | lr=%.2e | %.1fs",
-                            global_step, total_steps, avg_loss, lr, elapsed,
-                        )
-                        total_loss = 0.0
+                if global_step < warmup_steps and optimizer_for_scheduler is not None:
+                    lr_scale = (global_step + 1) / max(warmup_steps, 1)
+                    for pg in optimizer_for_scheduler.param_groups:
+                        pg["lr"] = self.cfg.learning_rate * lr_scale
 
-                    # Checkpoint
-                    if global_step % self.cfg.save_steps == 0:
-                        self._save_checkpoint(f"step-{global_step}")
+                self.backend.step()  # type: ignore[union-attr]
+                if scheduler is not None:
+                    scheduler.step()
+                self.backend.zero_grad()  # type: ignore[union-attr]
+                accum_step = 0
+                global_step += 1
+
+                if global_step % self.cfg.logging_steps == 0:
+                    elapsed = time.perf_counter() - t_start
+                    avg_loss = total_loss / self.cfg.logging_steps
+                    lr = (
+                        optimizer_for_scheduler.param_groups[0]["lr"]
+                        if optimizer_for_scheduler
+                        else self.cfg.learning_rate
+                    )
+                    log.info(
+                        "Step %d/%d | loss=%.4f | lr=%.2e | %.1fs",
+                        global_step,
+                        total_steps,
+                        avg_loss,
+                        lr,
+                        elapsed,
+                    )
+                    step_log = StepMetrics(
+                        loss=avg_loss,
+                        learning_rate=lr,
+                        global_step=global_step,
+                        grad_norm=grad_norm,
+                        gpu_mem_gb=current_gpu_mem_gb(),
+                    )
+                    if self.cfg.stage == "dpo":
+                        window = self.cfg.logging_steps
+                        step_log.reward_margin = dpo_margin_sum / window
+                        step_log.chosen_reward = dpo_chosen_sum / window
+                        step_log.rejected_reward = dpo_rejected_sum / window
+                        dpo_margin_sum = 0.0
+                        dpo_chosen_sum = 0.0
+                        dpo_rejected_sum = 0.0
+                    metrics_logger.on_log(step_log)
+                    total_loss = 0.0
+
+                if global_step % self.cfg.save_steps == 0:
+                    tag = f"step-{global_step}"
+                    self._save_checkpoint(tag)
+                    saved_checkpoints.append(tag)
+                    self._prune_checkpoints(saved_checkpoints)
 
         log.info("Training loop finished: %d steps in %.1fs", global_step, time.perf_counter() - t_start)
 
-    def _sft_step(self, batch: dict) -> torch.Tensor:
-        """SFT 前向：标准 LM loss。"""
+    def _trainable_module(self) -> nn.Module:
+        """返回用于 grad_norm 等诊断的底层模块。"""
+        module = self.model
+        if module is None:
+            raise RuntimeError("Model is not initialized")
+        return getattr(module, "module", module)
+
+    def _sft_step(self, batch: dict) -> tuple[torch.Tensor, dict[str, float]]:
+        """SFT 前向：标准 LM loss（仅 assistant 部分参与）。"""
         outputs = self.model(**batch)  # type: ignore[operator]
-        return outputs.loss
+        return outputs.loss, {}
 
-    def _dpo_step(self, batch: dict) -> torch.Tensor:
-        """DPO 前向：简化 DPO loss。
+    def _dpo_step(self, batch: dict) -> tuple[torch.Tensor, dict[str, float]]:
+        """DPO 前向：标准 DPO loss（含 reference model 对比）。"""
+        policy_chosen = self._compute_sequence_logp(
+            self.model,
+            batch["chosen_input_ids"],
+            batch["chosen_labels"],
+            batch["chosen_attention_mask"],
+            reference=False,
+        )
+        policy_rejected = self._compute_sequence_logp(
+            self.model,
+            batch["rejected_input_ids"],
+            batch["rejected_labels"],
+            batch["rejected_attention_mask"],
+            reference=False,
+        )
 
-        完整的 DPO loss 需要 reference model，这里实现核心逻辑。
-        生产环境建议使用 TRL 的 DPOTrainer。
+        ref_model = self._reference_model()
+        ref_chosen = self._compute_sequence_logp(
+            ref_model,
+            batch["chosen_input_ids"],
+            batch["chosen_labels"],
+            batch["chosen_attention_mask"],
+            reference=True,
+        )
+        ref_rejected = self._compute_sequence_logp(
+            ref_model,
+            batch["rejected_input_ids"],
+            batch["rejected_labels"],
+            batch["rejected_attention_mask"],
+            reference=True,
+        )
+
+        pi_logratios = policy_chosen - policy_rejected
+        ref_logratios = ref_chosen - ref_rejected
+        logits = pi_logratios - ref_logratios
+
+        beta = self.cfg.dpo_beta
+        if self.cfg.dpo_loss_type == "sigmoid":
+            loss = -F.logsigmoid(beta * logits).mean()
+        else:
+            raise ValueError(f"Unsupported dpo_loss_type: {self.cfg.dpo_loss_type}")
+
+        chosen_reward = float((beta * (policy_chosen - ref_chosen)).mean().item())
+        rejected_reward = float((beta * (policy_rejected - ref_rejected)).mean().item())
+        return loss, {
+            "chosen_reward": chosen_reward,
+            "rejected_reward": rejected_reward,
+            "reward_margin": chosen_reward - rejected_reward,
+        }
+
+    def _reference_model(self) -> nn.Module:
+        """返回 DPO reference model。
+
+        LoRA 模式下通过 disable_adapter 复用基座权重作为 π_ref，避免双份全量模型。
         """
-        # Extract log-probs for chosen and rejected
-        with torch.no_grad():
-            chosen_out = self.model(
-                input_ids=batch["chosen_input_ids"],
-                attention_mask=batch["chosen_attention_mask"],
-            )
-            rejected_out = self.model(
-                input_ids=batch["rejected_input_ids"],
-                attention_mask=batch["rejected_attention_mask"],
-            )
+        if self.ref_model is not None:
+            return self.ref_model
+        if hasattr(self.model, "disable_adapter"):
+            return self.model
+        raise RuntimeError(
+            "DPO requires a reference model. Use finetuning_type=lora or set ref_model_name_or_path."
+        )
 
-        chosen_logps = self._compute_logp(chosen_out.logits, batch["chosen_input_ids"])
-        rejected_logps = self._compute_logp(rejected_out.logits, batch["rejected_input_ids"])
+    def _compute_sequence_logp(
+        self,
+        model: nn.Module,
+        input_ids: torch.Tensor,
+        labels: torch.Tensor,
+        attention_mask: torch.Tensor,
+        *,
+        reference: bool = False,
+    ) -> torch.Tensor:
+        """计算 response token 上的 log-probability 之和。"""
+        from contextlib import nullcontext
 
-        beta = 0.1
-        logits = chosen_logps - rejected_logps
-        loss = -torch.nn.functional.logsigmoid(beta * logits).mean()
-        return loss
+        use_adapter_disable = (
+            reference
+            and self.ref_model is None
+            and model is self.model
+            and hasattr(model, "disable_adapter")
+        )
+        ctx = model.disable_adapter() if use_adapter_disable else nullcontext()
+        with ctx:
+            if reference:
+                with torch.no_grad():
+                    outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+            else:
+                outputs = model(input_ids=input_ids, attention_mask=attention_mask)
 
-    @staticmethod
-    def _compute_logp(logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        """计算序列的 log-probability。"""
+        logits = outputs.logits
         shift_logits = logits[..., :-1, :].contiguous()
         shift_labels = labels[..., 1:].contiguous()
-        loss_fn = nn.CrossEntropyLoss(reduction="none")
-        per_token_loss = loss_fn(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
-        per_token_loss = per_token_loss.view(shift_labels.shape)
-        return -per_token_loss.sum(dim=-1)
+
+        log_probs = F.log_softmax(shift_logits, dim=-1)
+        token_log_probs = torch.gather(
+            log_probs,
+            dim=-1,
+            index=shift_labels.clamp(min=0).unsqueeze(-1),
+        ).squeeze(-1)
+
+        loss_mask = (shift_labels != -100).float()
+        return (token_log_probs * loss_mask).sum(dim=-1)
 
     def _save_checkpoint(self, tag: str) -> None:
         """保存 checkpoint。"""
         save_dir = os.path.join(self.cfg.output_dir, f"checkpoint-{tag}")
         os.makedirs(save_dir, exist_ok=True)
 
-        # 保存 LoRA adapter 或完整模型
-        if self.cfg.finetuning_type == "lora" and hasattr(self.model, "save_pretrained"):
-            self.model.save_pretrained(save_dir)  # type: ignore[union-attr]
-        elif hasattr(self.model, "save_pretrained"):
-            self.model.save_pretrained(save_dir)  # type: ignore[union-attr]
-
+        model_to_save = getattr(self.model, "module", self.model)
+        if hasattr(model_to_save, "save_pretrained"):
+            model_to_save.save_pretrained(save_dir)  # type: ignore[union-attr]
         if self.tokenizer is not None:
             self.tokenizer.save_pretrained(save_dir)
 
         log.info("Checkpoint saved to %s", save_dir)
+
+    def _prune_checkpoints(self, saved: list[str]) -> None:
+        """保留最近 save_total_limit 个 checkpoint（M03 § 7.5）。"""
+        limit = self.cfg.save_total_limit
+        if limit <= 0 or len(saved) <= limit:
+            return
+
+        to_remove = saved[:-limit]
+        for tag in to_remove:
+            path = os.path.join(self.cfg.output_dir, f"checkpoint-{tag}")
+            if os.path.isdir(path):
+                import shutil
+
+                shutil.rmtree(path, ignore_errors=True)
+                log.info("Removed old checkpoint: %s", path)
+        del saved[: len(to_remove)]
