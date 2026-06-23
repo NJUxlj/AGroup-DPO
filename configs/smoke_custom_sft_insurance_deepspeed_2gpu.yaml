@@ -1,0 +1,38 @@
+# CustomTrainer DeepSpeed 双卡 SFT 烟雾测试
+# 启动: deepspeed --num_gpus=2 --module m_trainer.cli -- --config configs/smoke_custom_sft_insurance_deepspeed_2gpu.yaml --backend deepspeed
+
+model_name_or_path: /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct
+
+stage: sft
+finetuning_type: lora
+lora_target: q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
+lora_rank: 8
+lora_alpha: 16
+lora_dropout: 0.05
+
+dataset_dir: data/insurance
+dataset: insurance_sft_v1
+template: qwen
+cutoff_len: 1024
+
+output_dir: saves/smoke/custom_sft_insurance_deepspeed_2gpu
+logging_steps: 5
+save_steps: 50
+save_total_limit: 1
+overwrite_output_dir: true
+
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 2
+learning_rate: 5.0e-5
+max_steps: 20
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+
+report_to: none
+seed: 42
+
+deepspeed: configs/deepspeed/zero2_gpu.json
+
+trainer:
+  distributed_backend: deepspeed

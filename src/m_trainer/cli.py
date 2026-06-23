@@ -116,8 +116,14 @@ def main(args: list[str] | None = None) -> int:
         action="store_true",
         help="详细日志输出",
     )
+    parser.add_argument(
+        "--local_rank",
+        type=int,
+        default=-1,
+        help="DeepSpeed/torchrun 注入的 local rank（自动忽略非主进程日志）",
+    )
 
-    parsed = parser.parse_args(args)
+    parsed, _unknown = parser.parse_known_args(args)
 
     CustomLogger.configure(
         level="DEBUG" if parsed.verbose else "INFO",

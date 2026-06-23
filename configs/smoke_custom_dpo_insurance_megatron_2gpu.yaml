@@ -1,0 +1,39 @@
+# CustomTrainer Megatron TP=2 双卡 DPO（全参数 + 独立 ref model）
+# 启动: torchrun --nproc_per_node=2 -m m_trainer.cli --config configs/smoke_custom_dpo_insurance_megatron_2gpu.yaml --backend megatron
+
+model_name_or_path: /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct
+
+stage: dpo
+finetuning_type: full
+
+dataset_dir: data/insurance
+dataset: insurance_dpo_v1.2
+template: qwen
+cutoff_len: 512
+dpo_max_prompt_length: 256
+
+output_dir: saves/smoke/custom_dpo_insurance_megatron_2gpu
+logging_steps: 5
+save_steps: 50
+save_total_limit: 1
+overwrite_output_dir: true
+
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 2
+learning_rate: 5.0e-6
+max_steps: 10
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+
+pref_beta: 0.1
+pref_loss: sigmoid
+report_to: none
+seed: 42
+
+megatron:
+  tensor_model_parallel_size: 2
+  pipeline_model_parallel_size: 1
+
+trainer:
+  distributed_backend: megatron

@@ -122,10 +122,42 @@ class TrainingConfig:
             num_train_epochs=self.num_train_epochs,
             bf16=self.bf16,
             seed=self.seed,
+            world_size=_resolve_world_size(),
             deepspeed_config=self.deepspeed_config,
             fsdp_config=self.fsdp_config,
             megatron_config=self.megatron_config,
         )
+
+
+def _resolve_world_size() -> int:
+    """从 torch.distributed 或环境变量推断 world size。"""
+    try:
+        import torch.distributed as dist
+
+        if dist.is_initialized():
+            return dist.get_world_size()
+    except (ImportError, RuntimeError):
+        pass
+    return max(int(os.environ.get("WORLD_SIZE", "1")), 1)
+
+
+def _resolve_device() -> torch.device:
+    """解析当前进程应使用的设备（支持多卡 LOCAL_RANK）。"""
+    if not torch.cuda.is_available():
+        return torch.device("cpu")
+    local_rank = int(os.environ.get("LOCAL_RANK", os.environ.get("RANK", "0")))
+    return torch.device(f"cuda:{local_rank}")
+
+
+def _is_main_process() -> bool:
+    try:
+        import torch.distributed as dist
+
+        if dist.is_initialized():
+            return dist.get_rank() == 0
+    except (ImportError, RuntimeError):
+        pass
+    return int(os.environ.get("RANK", "0")) == 0
 
 
 def _load_deepspeed_config(raw: dict[str, Any]) -> dict[str, Any]:
@@ -149,6 +181,9 @@ def _normalize_yaml_config(raw: dict[str, Any]) -> dict[str, Any]:
     for key, value in raw.items():
         if key == "trainer" and isinstance(value, dict):
             normalized.update(value)
+            continue
+        if key == "megatron" and isinstance(value, dict):
+            normalized["megatron_config"] = value
             continue
         if key == "deepspeed":
             continue
@@ -378,7 +413,7 @@ class CustomTrainer:
         self.tokenizer = None
         self.backend = None
         self.optimizer: Any = None
-        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._device = _resolve_device()
 
     @classmethod
     def from_yaml(cls, path: str) -> "CustomTrainer":
@@ -427,11 +462,46 @@ class CustomTrainer:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         torch_dtype = torch.bfloat16 if self.cfg.bf16 else torch.float32
-        self.model = AutoModelForCausalLM.from_pretrained(
-            self.cfg.model_name_or_path,
-            torch_dtype=torch_dtype,
-            trust_remote_code=self.cfg.trust_remote_code,
+
+        ds_cfg: dict[str, Any] = {}
+        if self.cfg.distributed_backend == "deepspeed":
+            from .backends.deepspeed import build_zero3_config
+
+            ds_cfg = build_zero3_config(self.cfg.to_trainer_config())
+
+        zero_stage = int(ds_cfg.get("zero_optimization", {}).get("stage", 3))
+        # zero.Init 仅 ZeRO3+ 需要；ZeRO1/2 多卡直接加载，避免 Init 阶段 NCCL broadcast 问题
+        use_ds_zero_init = (
+            self.cfg.distributed_backend == "deepspeed"
+            and _resolve_world_size() > 1
+            and zero_stage >= 3
         )
+        if use_ds_zero_init:
+            import deepspeed
+
+            zero_init_cfg = {
+                "train_micro_batch_size_per_gpu": self.cfg.per_device_batch_size,
+                "gradient_accumulation_steps": self.cfg.gradient_accumulation_steps,
+            }
+            if ds_cfg.get("zero_optimization"):
+                zero_init_cfg["zero_optimization"] = ds_cfg["zero_optimization"]
+            log.info(
+                "Loading model under deepspeed.zero.Init (world_size=%s, stage=%s)",
+                _resolve_world_size(),
+                zero_stage,
+            )
+            with deepspeed.zero.Init(config_dict_or_path=zero_init_cfg):
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.cfg.model_name_or_path,
+                    torch_dtype=torch_dtype,
+                    trust_remote_code=self.cfg.trust_remote_code,
+                )
+        else:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.cfg.model_name_or_path,
+                torch_dtype=torch_dtype,
+                trust_remote_code=self.cfg.trust_remote_code,
+            )
 
         if self.cfg.stage == "dpo" and self.cfg.finetuning_type != "lora":
             ref_path = self.cfg.ref_model_name_or_path or self.cfg.model_name_or_path
@@ -444,12 +514,14 @@ class CustomTrainer:
             self.ref_model.eval()
             for param in self.ref_model.parameters():
                 param.requires_grad = False
-            self.ref_model.to(self._device)
+            if self.cfg.distributed_backend != "deepspeed":
+                self.ref_model.to(self._device)
 
         if self.cfg.finetuning_type == "lora":
             self._apply_lora()
 
-        self.model.to(self._device)
+        if self.cfg.distributed_backend != "deepspeed":
+            self.model.to(self._device)
         self.model.train()
         log.info("Model loaded: %s params", sum(p.numel() for p in self.model.parameters()))
 
@@ -511,6 +583,8 @@ class CustomTrainer:
         self.model, self.optimizer = self.backend.init(  # type: ignore[assignment]
             self.model, optimizer, trainer_cfg  # type: ignore[arg-type]
         )
+        if self.cfg.distributed_backend in ("megatron", "accelerate", "fsdp"):
+            self.model.to(self._device)  # type: ignore[union-attr]
 
     def _run_training_loop(self, dataloader: DataLoader, metrics_logger: MetricsLogger) -> None:
         """主训练循环。"""
@@ -600,7 +674,7 @@ class CustomTrainer:
                 accum_step = 0
                 global_step += 1
 
-                if global_step % self.cfg.logging_steps == 0:
+                if global_step % self.cfg.logging_steps == 0 and _is_main_process():
                     elapsed = time.perf_counter() - t_start
                     avg_loss = total_loss / self.cfg.logging_steps
                     lr = (
@@ -759,7 +833,10 @@ class CustomTrainer:
         return (token_log_probs * loss_mask).sum(dim=-1)
 
     def _save_checkpoint(self, tag: str) -> None:
-        """保存 checkpoint。"""
+        """保存 checkpoint（仅 rank 0）。"""
+        if not _is_main_process():
+            return
+
         save_dir = os.path.join(self.cfg.output_dir, f"checkpoint-{tag}")
         os.makedirs(save_dir, exist_ok=True)
 

@@ -415,6 +415,13 @@ def _convert_gpt2_to_tp(
 # ---------------------------------------------------------------------------
 
 
+def _resolve_causal_lm(model: nn.Module) -> nn.Module:
+    """解析 PeftModel 包装下的 CausalLM 根模块。"""
+    if hasattr(model, "base_model") and hasattr(model.base_model, "model"):
+        return model.base_model.model
+    return model
+
+
 def _convert_qwen2_to_tp(
     model: nn.Module,
     tp_config: Any,
@@ -434,7 +441,8 @@ def _convert_qwen2_to_tp(
     if tp_size <= 1:
         return model
 
-    base_model = getattr(model, 'model', model)
+    root = _resolve_causal_lm(model)
+    base_model = getattr(root, 'model', root)
 
     # --- embed_tokens ---
     if hasattr(base_model, 'embed_tokens') and isinstance(
@@ -455,8 +463,8 @@ def _convert_qwen2_to_tp(
         )
 
     # --- lm_head ---
-    if hasattr(model, 'lm_head') and isinstance(model.lm_head, nn.Linear):
-        old_head = model.lm_head
+    if hasattr(root, 'lm_head') and isinstance(root.lm_head, nn.Linear):
+        old_head = root.lm_head
         new_head = _ColumnParallelWrapper(
             in_features=old_head.in_features,
             out_features=old_head.out_features,
@@ -466,7 +474,7 @@ def _convert_qwen2_to_tp(
             gather_output=True,
         )
         new_head.load_weights_from_linear(old_head)
-        model.lm_head = new_head
+        root.lm_head = new_head
         log.info(
             "Qwen2 lm_head → ColumnParallelLinear (rank=%s/%s)", tp_rank, tp_size
         )
@@ -615,7 +623,7 @@ class MegatronBackend(DistributedBackend):
         self._config = config
 
         # 1. 检测模型类型
-        model_type = detect_model_type(model)
+        model_type = detect_model_type(_resolve_causal_lm(model))
         if model_type == 'unknown':
             raise ValueError(
                 f"Unsupported model type: {model.__class__.__name__}. "
@@ -693,6 +701,7 @@ class MegatronBackend(DistributedBackend):
                     num_workers=dataloader.num_workers,
                     pin_memory=dataloader.pin_memory,
                     drop_last=dataloader.drop_last,
+                    collate_fn=dataloader.collate_fn,
                 )
         return dataloader
 

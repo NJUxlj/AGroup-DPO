@@ -68,9 +68,15 @@ def build_zero3_config(cfg: TrainerConfig) -> dict[str, Any]:
         },
     }
 
-    # 合并用户自定义的 deepspeed 配置
+    # 合并用户自定义的 deepspeed 配置（跳过 "auto" 占位符，避免覆盖数值 batch size）
     if cfg.deepspeed_config:
-        ds_config.update(cfg.deepspeed_config)
+        for key, value in cfg.deepspeed_config.items():
+            if value == "auto":
+                continue
+            if key == "zero_optimization" and isinstance(value, dict):
+                ds_config.setdefault("zero_optimization", {}).update(value)
+            else:
+                ds_config[key] = value
 
     return ds_config
 

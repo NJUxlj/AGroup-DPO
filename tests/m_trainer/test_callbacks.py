@@ -80,7 +80,7 @@ class TestMetricsLogger:
         logger._world_size = 2
         logger.record_batch_samples(4)
         logger.record_batch_samples(4)
-        with patch("m_trainer.callbacks.time.perf_counter", side_effect=[0.0, 2.0]):
+        with patch("m_trainer.callbacks.time.perf_counter", return_value=2.0):
             logger._window_start = 0.0
             throughput = logger.throughput_samples_per_gpu()
         assert throughput == 4.0
