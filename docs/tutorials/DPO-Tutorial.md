@@ -252,11 +252,63 @@ $$
    $$
    \pi^* = \arg\max_\pi \mathbb{E}[r(x,y)] - \beta D_{\text{KL}}(\pi \| \pi_{\text{ref}})
    $$
+
+   **从 (1) 到 (2) 的推导**：固定 prompt $x$ 后，优化变量是条件分布 $\pi(\cdot|x)$。将 KL 散度展开，目标可写为
+
+   $$
+   \max_{\pi(\cdot|x)} \sum_y \pi(y|x)\, r(x,y)
+   - \beta \sum_y \pi(y|x)\, \log\frac{\pi(y|x)}{\pi_{\text{ref}}(y|x)}
+   $$
+
+   约束为 $\sum_y \pi(y|x) = 1$（且 $\pi(y|x) \ge 0$）。引入拉格朗日乘子 $\lambda$，构造
+
+   $$
+   \mathcal{L}(\pi, \lambda)
+   = \sum_y \pi(y|x)\, r(x,y)
+   - \beta \sum_y \pi(y|x)\, \log\frac{\pi(y|x)}{\pi_{\text{ref}}(y|x)}
+   + \lambda\left(1 - \sum_y \pi(y|x)\right)
+   $$
+
+   对 $\pi(y|x)$ 求偏导并令其为零（一阶最优性条件）：
+
+   $$
+   \frac{\partial \mathcal{L}}{\partial \pi(y|x)}
+   = r(x,y) - \beta\left(\log\frac{\pi(y|x)}{\pi_{\text{ref}}(y|x)} + 1\right) - \lambda = 0
+   $$
+
+   整理得
+
+   $$
+   \log\frac{\pi(y|x)}{\pi_{\text{ref}}(y|x)}
+   = \frac{r(x,y)}{\beta} - 1 - \frac{\lambda}{\beta}
+   $$
+
+   两边取指数：
+
+   $$
+   \pi(y|x)
+   = \pi_{\text{ref}}(y|x)\,\exp\!\left(\frac{r(x,y)}{\beta}\right)
+   \cdot \exp\!\left(-1 - \frac{\lambda}{\beta}\right)
+   $$
+
+   其中 $\exp(-1 - \lambda/\beta)$ 与 $y$ 无关，只是归一化前的常数因子。因此
+
+   $$
+   \pi(y|x) \propto \pi_{\text{ref}}(y|x)\,\exp\!\left(\frac{1}{\beta} r(x,y)\right)
+   $$
+
+   再用 $\sum_y \pi(y|x)=1$ 归一化，即得下面的解析解。
+
 2. **写出解析解**：
 
    $$
-   \pi^*(y|x) \propto \pi_{\text{ref}}(y|x) \exp\left(\frac{1}{\beta} r(x,y)\right)
+   \pi^*(y|x) = \frac{1}{Z(x)}\,\pi_{\text{ref}}(y|x)\,\exp\left(\frac{1}{\beta} r(x,y)\right),
+   \quad
+   Z(x) = \sum_y \pi_{\text{ref}}(y|x)\,\exp\left(\frac{1}{\beta} r(x,y)\right)
    $$
+
+   等价地也可写成 $\pi^*(y|x) \propto \pi_{\text{ref}}(y|x)\,\exp\!\left(\frac{1}{\beta} r(x,y)\right)$。
+
 3. **取对数得奖励表达式**：
 
    $$

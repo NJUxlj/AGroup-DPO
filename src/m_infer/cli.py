@@ -185,10 +185,7 @@ def main():
 
     args = parser.parse_args()
 
-    CustomLogger.configure(
-        level="INFO",
-        format="%(asctime)s [%(levelname)s] %(message)s",
-    )
+    CustomLogger.configure(level="INFO")
 
     try:
         if args.host is not None:

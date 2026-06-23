@@ -1,6 +1,11 @@
 """Generate a PNG title banner for README — with CJK support and proper centering."""
+from pathlib import Path
+
 from PIL import Image, ImageDraw, ImageFont
 
+from _render import get_cjk_font
+
+BASE = Path(__file__).resolve().parent
 W, H = 800, 160
 img = Image.new('RGBA', (W, H), (0, 0, 0, 0))
 draw = ImageDraw.Draw(img)
@@ -17,8 +22,7 @@ draw.rounded_rectangle(
 # Fonts
 # English title — bold, impactful
 font_title = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Black.ttf", 62)
-# Chinese subtitle — Arial Unicode covers CJK
-font_sub = ImageFont.truetype("/Library/Fonts/Arial Unicode.ttf", 20)
+font_sub = get_cjk_font(20)
 
 # Colors
 orange = (255, 80, 0)
@@ -44,5 +48,6 @@ draw.rectangle([(500, line_y), (640, line_y + 5)], fill=line_color)
 # Subtitle
 draw.text((cx, line_y - 16), "保险场景  ·  偏好对齐  ·  工程实践", fill=(100, 100, 100), font=font_sub, anchor="mm")
 
-img.save("title.png")
-print(f"Saved title.png ({W}x{H})")
+out = BASE / "title.png"
+img.save(out)
+print(f"Saved {out} ({W}x{H})")

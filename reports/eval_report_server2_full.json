@@ -1,0 +1,34 @@
+{
+  "model_version": "Qwen2.5-1.5B-Instruct",
+  "infer_backend": "vllm",
+  "datasets": {
+    "alpaca_zh_200": {
+      "accuracy": 0.355,
+      "bleu_4": 0.093,
+      "rouge_l": 0.2847,
+      "n_samples": 200
+    },
+    "insurance_qa_500": {
+      "accuracy": 0.254,
+      "bleu_4": 0.001,
+      "rouge_l": 0.047,
+      "n_samples": 500
+    },
+    "medical_qa_1000": {
+      "accuracy": 0.431,
+      "bleu_4": 0.0007,
+      "rouge_l": 0.1018,
+      "n_samples": 1000
+    }
+  },
+  "generated_at": "2026-06-23T15:12:59.158578+00:00",
+  "latency": {
+    "p50_first_token_ms": 0.0,
+    "p95_first_token_ms": 0.0,
+    "p99_first_token_ms": 0.0,
+    "p50_total_ms": 10.2,
+    "p95_total_ms": 10.2,
+    "p99_total_ms": 10.2,
+    "throughput_samples_per_s": 103.2
+  }
+}

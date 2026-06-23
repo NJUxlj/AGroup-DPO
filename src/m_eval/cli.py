@@ -237,10 +237,7 @@ def main():
 
     args = parser.parse_args()
 
-    CustomLogger.configure(
-        level="INFO",
-        format="%(asctime)s [%(levelname)s] %(message)s",
-    )
+    CustomLogger.configure(level="INFO")
 
     thresholds: dict[str, float] = {}
     try:

@@ -1,0 +1,25 @@
+=== LoRA Merge — server2 (RTX 5090) ===
+
+$ python -m m_merge.cli \
+    --base /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct \
+    --adapter saves/smoke/custom_dpo_insurance/checkpoint-final \
+    --output merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 \
+    --device cuda --dtype bfloat16
+
+23:23:02 | INFO     | m_merge.exporter - 正在加载基座模型 /root/autodl-tmp/models/Qwen2.5-1.5B-Instruct (device=cuda, dtype=torch.bfloat16) ...
+23:23:04 | INFO     | m_merge.exporter - 正在加载 adapter /root/autodl-tmp/agroup-dpo/saves/smoke/custom_dpo_insurance/checkpoint-final ...
+23:23:05 | INFO     | m_merge.exporter - 正在合并 adapter → base ...
+23:23:05 | INFO     | m_merge.exporter - 正在保存合并模型到 /root/autodl-tmp/agroup-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2 (max_shard=5GB) ...
+23:23:07 | INFO     | m_merge.exporter - 正在保存 tokenizer ...
+23:23:08 | INFO     | m_merge.exporter - 合并完成: /root/autodl-tmp/agroup-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2
+Merge completed successfully.
+
+Merge completed successfully.
+Exported model: merged_models/qwen2_5_1_5b_insurance_dpo_v1.2
+
+=== 产物清单 ===
+-rw------- 1 root root 2.9G Jun 23 23:23 /root/autodl-tmp/agroup-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2/model.safetensors
+-rw-r--r-- 1 root root 727 Jun 23 23:23 /root/autodl-tmp/agroup-dpo/merged_models/qwen2_5_1_5b_insurance_dpo_v1.2/config.json
+-rw------- 1 root root 18M Jun 23 20:51 /root/autodl-tmp/agroup-dpo/saves/smoke/custom_dpo_insurance/checkpoint-final/adapter_model.safetensors
+
+✓ Merge OK — 可直接被 vLLM / m_infer 加载
